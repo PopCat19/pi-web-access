@@ -3,8 +3,7 @@ import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { QueryResultData } from "./storage.js";
 
 const PREFERRED_SUMMARY_MODELS = [
-	{ provider: "anthropic", id: "claude-haiku-4-5" },
-	{ provider: "openai-codex", id: "gpt-5.3-codex-spark" },
+	{ provider: "ollama", id: "deepseek-v4-flash" },
 ] as const;
 
 export interface SummaryMeta {
