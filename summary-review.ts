@@ -3,7 +3,7 @@ import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { QueryResultData } from "./storage.js";
 
 const PREFERRED_SUMMARY_MODELS = [
-	{ provider: "ollama", id: "deepseek-v4-flash" },
+	{ provider: "ollama", id: "gemini-3-flash-preview" },
 ] as const;
 
 export interface SummaryMeta {

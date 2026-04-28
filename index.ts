@@ -682,8 +682,7 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		const preferredDefaults = [
-			"anthropic/claude-haiku-4-5",
-			"openai-codex/gpt-5.3-codex-spark",
+			"ollama/gemini-3-flash-preview",
 		];
 		let defaultSummaryModel: string | null = null;
 		for (const preferred of preferredDefaults) {
