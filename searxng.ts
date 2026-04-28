@@ -29,20 +29,28 @@ function loadConfig(): WebSearchConfig {
 	}
 }
 
-function getSearxngUrl(): string {
+function getSearxngUrl(): string | null {
 	const config = loadConfig();
-	const url = (process.env.SEARXNG_URL ?? config.searxngUrl ?? "http://localhost:9088").replace(/\/$/, "");
-	return `${url}/search`;
+	const url = (process.env.SEARXNG_URL ?? config.searxngUrl);
+	return url ? url.replace(/\/$/, "") + "/search" : null;
 }
 
 export function isSearxngAvailable(): boolean {
 	const config = loadConfig();
-	return !!(process.env.SEARXNG_URL ?? config.searxngUrl ?? "http://localhost:9088");
+	return !!(process.env.SEARXNG_URL ?? config.searxngUrl);
 }
 
 export async function searchWithSearxng(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
 	const activityId = activityMonitor.logStart({ type: "api", query });
 	const baseUrl = getSearxngUrl();
+
+	if (!baseUrl) {
+		throw new Error(
+			"SearXNG URL not found. Either:\n" +
+			"  1. Set \"searxngUrl\" in ~/.pi/web-search.json\n" +
+			"  2. Set SEARXNG_URL environment variable"
+		);
+	}
 
 	const url = new URL(baseUrl);
 	url.searchParams.set("q", query);
