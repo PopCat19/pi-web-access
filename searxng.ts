@@ -101,11 +101,21 @@ export async function searchWithSearxng(query: string, options: SearchOptions = 
 		snippet: r.content || "",
 	})).slice(0, options.numResults ?? 10);
 
-	// SearXNG doesn't provide a synthesized answer, so we construct a minimal one or leave it empty.
-	// Since pi-web-access expects an 'answer', we can summarize the snippets or just list sources.
+	// Construct answer from results (similar to Exa's behavior)
 	let answer = data.infoboxes?.[0]?.content || "";
 	if (!answer && results.length > 0) {
-		answer = `Found ${results.length} results for "${query}" via SearXNG.`;
+		const parts: string[] = [];
+		for (let i = 0; i < results.length; i++) {
+			const res = results[i];
+			if (res.snippet) {
+				parts.push(`${res.snippet.trim()}\nSource: ${res.title} (${res.url})`);
+			}
+		}
+		if (parts.length > 0) {
+			answer = parts.join("\n\n");
+		} else {
+			answer = `Found ${results.length} results for "${query}" via SearXNG.`;
+		}
 	}
 
 	activityMonitor.logComplete(activityId, response.status);
