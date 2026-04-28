@@ -126,9 +126,8 @@ function normalizeCuratorTimeoutSeconds(value: unknown): number | undefined {
 }
 
 function resolveWorkflow(input: unknown, hasUI: boolean): WebSearchWorkflow {
-	if (!hasUI) return "none";
-	if (typeof input === "string" && input.trim().toLowerCase() === "none") return "none";
-	return "summary-review";
+	if (typeof input === "string" && input.trim().toLowerCase() === "summary-review") return "summary-review";
+	return "none";
 }
 
 function normalizeQueryList(queryList: unknown[]): string[] {
