@@ -6,8 +6,9 @@ import { getApiKey, API_BASE, DEFAULT_MODEL } from "./gemini-api.js";
 import { isGeminiWebAvailable, queryWithCookies } from "./gemini-web.js";
 import { isPerplexityAvailable, searchWithPerplexity, type SearchResult, type SearchResponse, type SearchOptions } from "./perplexity.js";
 import { hasExaApiKey, isExaAvailable, searchWithExa } from "./exa.js";
+import { isSearxngAvailable, searchWithSearxng } from "./searxng.js";
 
-export type SearchProvider = "auto" | "perplexity" | "gemini" | "exa";
+export type SearchProvider = "auto" | "perplexity" | "gemini" | "exa" | "searxng";
 export type ResolvedSearchProvider = Exclude<SearchProvider, "auto">;
 
 export interface AttributedSearchResponse extends SearchResponse {
@@ -57,7 +58,7 @@ function normalizeSearchModel(value: unknown): string | undefined {
 
 function normalizeSearchProvider(value: unknown): SearchProvider {
 	const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-	return normalized === "auto" || normalized === "perplexity" || normalized === "gemini" || normalized === "exa"
+	return normalized === "auto" || normalized === "perplexity" || normalized === "gemini" || normalized === "exa" || normalized === "searxng"
 		? normalized
 		: "auto";
 }
@@ -146,7 +147,22 @@ export async function search(query: string, options: FullSearchOptions = {}): Pr
 		}
 	}
 
+	if (provider === "searxng") {
+		const result = await searchWithSearxng(query, options);
+		return { ...result, provider: "searxng" };
+	}
+
 	const fallbackErrors: string[] = [];
+
+	if (provider !== "searxng" && isSearxngAvailable()) {
+		try {
+			const result = await searchWithSearxng(query, options);
+			return { ...result, provider: "searxng" };
+		} catch (err) {
+			if (isAbortError(err)) throw err;
+			fallbackErrors.push(`SearXNG: ${errorMessage(err)}`);
+		}
+	}
 
 	if (provider !== "exa" && isExaAvailable()) {
 		try {
