@@ -1,9 +1,15 @@
 import { complete, getModel, type Message, type Model } from "@mariozechner/pi-ai";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { QueryResultData } from "./storage.js";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+
+const CONFIG_PATH = join(homedir(), ".pi", "web-search.json");
 
 const PREFERRED_SUMMARY_MODELS = [
-	{ provider: "ollama", id: "gemini-3-flash-preview" },
+	{ provider: "anthropic", id: "claude-haiku-4-5" },
+	{ provider: "openai-codex", id: "gpt-5.3-codex-spark" },
 ] as const;
 
 export interface SummaryMeta {
@@ -16,6 +22,29 @@ export interface SummaryMeta {
 }
 
 export type SummaryGenerationContext = Pick<ExtensionContext, "model" | "modelRegistry">;
+
+interface WebSearchConfig {
+	summaryModel?: string;
+}
+
+let cachedConfig: WebSearchConfig | null = null;
+
+function loadConfig(): WebSearchConfig {
+	if (cachedConfig) return cachedConfig;
+	if (!existsSync(CONFIG_PATH)) {
+		cachedConfig = {};
+		return cachedConfig;
+	}
+
+	const content = readFileSync(CONFIG_PATH, "utf-8");
+	try {
+		cachedConfig = JSON.parse(content) as WebSearchConfig;
+		return cachedConfig;
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		throw new Error(`Failed to parse ${CONFIG_PATH}: ${message}`);
+	}
+}
 
 function estimateTokens(text: string): number {
 	const trimmed = text.trim();
@@ -180,7 +209,8 @@ async function resolveSummaryModel(
 	ctx: SummaryGenerationContext,
 	modelOverride?: string,
 ): Promise<{ model: Model; apiKey: string; headers?: Record<string, string> }> {
-	const normalizedOverride = typeof modelOverride === "string" ? modelOverride.trim() : "";
+	const config = loadConfig();
+	const normalizedOverride = typeof modelOverride === "string" ? modelOverride.trim() : (config.summaryModel ?? "");
 	if (normalizedOverride.length > 0) {
 		const slashIndex = normalizedOverride.indexOf("/");
 		if (slashIndex <= 0 || slashIndex >= normalizedOverride.length - 1) {
