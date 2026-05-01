@@ -37,6 +37,7 @@ import { isPerplexityAvailable } from "./perplexity.js";
 import { isExaAvailable } from "./exa.js";
 import { isGeminiApiAvailable } from "./gemini-api.js";
 import { getActiveGoogleEmail, isGeminiWebAvailable } from "./gemini-web.js";
+import { isSearxngAvailable } from "./searxng.js";
 
 const WEB_SEARCH_CONFIG_PATH = join(homedir(), ".pi", "web-search.json");
 
@@ -54,6 +55,7 @@ interface ProviderAvailability {
 	perplexity: boolean;
 	exa: boolean;
 	gemini: boolean;
+	searxng: boolean;
 }
 
 type WebSearchWorkflow = "none" | "summary-review";
@@ -112,7 +114,7 @@ function normalizeProviderInput(value: unknown): SearchProvider | undefined {
 	if (value === undefined) return undefined;
 	if (typeof value !== "string") return "auto";
 	const normalized = value.trim().toLowerCase();
-	if (normalized === "auto" || normalized === "exa" || normalized === "perplexity" || normalized === "gemini") {
+	if (normalized === "auto" || normalized === "exa" || normalized === "perplexity" || normalized === "gemini" || normalized === "searxng") {
 		return normalized;
 	}
 	return "auto";
@@ -151,6 +153,7 @@ async function getProviderAvailability(): Promise<ProviderAvailability> {
 		perplexity: isPerplexityAvailable(),
 		exa: isExaAvailable(),
 		gemini: isGeminiApiAvailable() || !!geminiWebAvail,
+		searxng: isSearxngAvailable(),
 	};
 }
 
@@ -171,20 +174,29 @@ function resolveProvider(
 
 	if (provider === "auto") {
 		if (available.exa) return "exa";
+		if (available.searxng) return "searxng";
 		if (available.perplexity) return "perplexity";
 		if (available.gemini) return "gemini";
 		return "exa";
 	}
 	if (provider === "exa" && !available.exa) {
+		if (available.searxng) return "searxng";
 		if (available.perplexity) return "perplexity";
 		return available.gemini ? "gemini" : "exa";
 	}
+	if (provider === "searxng" && !available.searxng) {
+		if (available.exa) return "exa";
+		if (available.perplexity) return "perplexity";
+		return available.gemini ? "gemini" : "searxng";
+	}
 	if (provider === "perplexity" && !available.perplexity) {
 		if (available.exa) return "exa";
+		if (available.searxng) return "searxng";
 		return available.gemini ? "gemini" : "perplexity";
 	}
 	if (provider === "gemini" && !available.gemini) {
 		if (available.exa) return "exa";
+		if (available.searxng) return "searxng";
 		return available.perplexity ? "perplexity" : "gemini";
 	}
 	return provider;

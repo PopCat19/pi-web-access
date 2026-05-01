@@ -154,16 +154,6 @@ export async function search(query: string, options: FullSearchOptions = {}): Pr
 
 	const fallbackErrors: string[] = [];
 
-	if (provider !== "searxng" && isSearxngAvailable()) {
-		try {
-			const result = await searchWithSearxng(query, options);
-			return { ...result, provider: "searxng" };
-		} catch (err) {
-			if (isAbortError(err)) throw err;
-			fallbackErrors.push(`SearXNG: ${errorMessage(err)}`);
-		}
-	}
-
 	if (provider !== "exa" && isExaAvailable()) {
 		try {
 			const result = await searchWithExa(query, options);
@@ -171,6 +161,16 @@ export async function search(query: string, options: FullSearchOptions = {}): Pr
 		} catch (err) {
 			if (isAbortError(err)) throw err;
 			fallbackErrors.push(`Exa: ${errorMessage(err)}`);
+		}
+	}
+
+	if (provider !== "searxng" && isSearxngAvailable()) {
+		try {
+			const result = await searchWithSearxng(query, options);
+			return { ...result, provider: "searxng" };
+		} catch (err) {
+			if (isAbortError(err)) throw err;
+			fallbackErrors.push(`SearXNG: ${errorMessage(err)}`);
 		}
 	}
 
