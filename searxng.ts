@@ -36,7 +36,7 @@ function loadConfig(): WebSearchConfig {
 function getSearxngUrl(): string | null {
 	const config = loadConfig();
 	const url = process.env.SEARXNG_URL ?? config.searxngUrl;
-	return url ? url.replace(/\/$/, "") + "/search" : null;
+	return url ? `${url.replace(/\/$/, "")}/search` : null;
 }
 
 export function isSearxngAvailable(): boolean {
@@ -101,7 +101,7 @@ export async function searchWithSearxng(
 		throw new Error(`SearXNG API error ${response.status}: ${errorText}`);
 	}
 
-	let data: any;
+	let data: Record<string, unknown>;
 	try {
 		data = await response.json();
 	} catch (err) {
@@ -111,7 +111,7 @@ export async function searchWithSearxng(
 	}
 
 	const results: SearchResult[] = (data.results || [])
-		.map((r: any) => ({
+		.map((r: Record<string, unknown>) => ({
 			title: r.title || r.pretty_url || "Source",
 			url: r.url,
 			snippet: r.content || "",

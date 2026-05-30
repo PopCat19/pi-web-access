@@ -546,7 +546,7 @@ function readReadme(localPath: string): string | null {
 			try {
 				const content = readFileSync(readmePath, "utf-8");
 				return content.length > 8192
-					? content.slice(0, 8192) + "\n\n[README truncated at 8K chars]"
+					? `${content.slice(0, 8192)}\n\n[README truncated at 8K chars]`
 					: content;
 			} catch {}
 		}

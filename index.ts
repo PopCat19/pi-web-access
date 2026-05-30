@@ -107,7 +107,7 @@ function saveConfig(updates: Partial<WebSearchConfig>): void {
 	Object.assign(config, updates);
 	const dir = join(homedir(), ".pi");
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-	writeFileSync(WEB_SEARCH_CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
+	writeFileSync(WEB_SEARCH_CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`);
 }
 
 const DEFAULT_SHORTCUTS = { curate: "ctrl+shift+s", activity: "ctrl+shift+w" };
@@ -147,7 +147,7 @@ function normalizeCuratorTimeoutSeconds(value: unknown): number | undefined {
 	return Math.min(normalized, MAX_CURATOR_TIMEOUT_SECONDS);
 }
 
-function resolveWorkflow(input: unknown, hasUI: boolean): WebSearchWorkflow {
+function resolveWorkflow(input: unknown, _hasUI: boolean): WebSearchWorkflow {
 	if (
 		typeof input === "string" &&
 		input.trim().toLowerCase() === "summary-review"
@@ -463,13 +463,13 @@ function updateWidget(ctx: ExtensionContext): void {
 	const entries = activityMonitor.getEntries();
 	const lines: string[] = [];
 
-	lines.push(theme.fg("accent", "─── Web Search Activity " + "─".repeat(36)));
+	lines.push(theme.fg("accent", `─── Web Search Activity ${"─".repeat(36)}`));
 
 	if (entries.length === 0) {
 		lines.push(theme.fg("muted", "  No activity yet"));
 	} else {
 		for (const e of entries) {
-			lines.push("  " + formatEntryLine(e, theme));
+			lines.push(`  ${formatEntryLine(e, theme)}`);
 		}
 	}
 
@@ -871,7 +871,7 @@ export default function (pi: ExtensionAPI) {
 			opts.approvedSummary.trim().length > 0;
 		let output = "";
 		if (hasApprovedSummary) {
-			output = opts.approvedSummary!.trim();
+			output = opts.approvedSummary?.trim();
 		} else {
 			if (opts.curated) {
 				output +=
@@ -888,7 +888,7 @@ export default function (pi: ExtensionAPI) {
 				}
 				if (error) output += `Error: ${error}\n\n`;
 				else if (results.length === 0) output += "No results found.\n\n";
-				else output += formatSearchSummary(results, answer) + "\n\n";
+				else output += `${formatSearchSummary(results, answer)}\n\n`;
 			}
 		}
 
@@ -944,7 +944,7 @@ export default function (pi: ExtensionAPI) {
 				...(opts.workflow && hasApprovedSummary
 					? {
 							summary: {
-								text: opts.approvedSummary!.trim(),
+								text: opts.approvedSummary?.trim(),
 								workflow: opts.workflow,
 								model: opts.summaryMeta?.model ?? null,
 								durationMs: opts.summaryMeta?.durationMs ?? 0,
@@ -1643,7 +1643,7 @@ export default function (pi: ExtensionAPI) {
 			}
 			if (queryList.length === 1) {
 				const q = queryList[0];
-				const display = q.length > 60 ? q.slice(0, 57) + "..." : q;
+				const display = q.length > 60 ? `${q.slice(0, 57)}...` : q;
 				return new Text(
 					theme.fg("toolTitle", theme.bold("search ")) +
 						theme.fg("accent", `"${display}"`),
@@ -1656,7 +1656,7 @@ export default function (pi: ExtensionAPI) {
 					theme.fg("accent", `${queryList.length} queries`),
 			];
 			for (const q of queryList.slice(0, 5)) {
-				const display = q.length > 50 ? q.slice(0, 47) + "..." : q;
+				const display = q.length > 50 ? `${q.slice(0, 47)}...` : q;
 				lines.push(theme.fg("muted", `  "${display}"`));
 			}
 			if (queryList.length > 5) {
@@ -1715,7 +1715,7 @@ export default function (pi: ExtensionAPI) {
 						"\u2591".repeat(10 - Math.floor(progress * 10));
 					const query = details?.currentQuery || "";
 					const display =
-						query.length > 40 ? query.slice(0, 37) + "..." : query;
+						query.length > 40 ? `${query.slice(0, 37)}...` : query;
 					return new Text(theme.fg("accent", `[${bar}] ${display}`), 0, 0);
 				}
 				const progress = details?.progress ?? 0;
@@ -1764,7 +1764,7 @@ export default function (pi: ExtensionAPI) {
 				lines.push(
 					theme.fg(
 						"accent",
-						`── Summary (${details.summary.workflow}) ` + "─".repeat(32),
+						`── Summary (${details.summary.workflow}) ${"─".repeat(32)}`,
 					),
 				);
 				lines.push("");
@@ -1784,7 +1784,7 @@ export default function (pi: ExtensionAPI) {
 				if (details.summary.fallbackReason) {
 					metaParts.push(`reason=${details.summary.fallbackReason}`);
 				}
-				lines.push(theme.fg("dim", "  " + metaParts.join(" · ")));
+				lines.push(theme.fg("dim", `  ${metaParts.join(" · ")}`));
 			}
 
 			const queryDetails = details?.curatedQueries;
@@ -1803,7 +1803,7 @@ export default function (pi: ExtensionAPI) {
 				for (const cq of queryDetails) {
 					lines.push("");
 					const dq =
-						cq.query.length > 65 ? cq.query.slice(0, 62) + "..." : cq.query;
+						cq.query.length > 65 ? `${cq.query.slice(0, 62)}...` : cq.query;
 					const providerLabel = cq.provider ? ` (${cq.provider})` : "";
 					lines.push(theme.fg("accent", `  "${dq}"${providerLabel}`));
 
@@ -1823,7 +1823,7 @@ export default function (pi: ExtensionAPI) {
 								.replace(/^https?:\/\//, "")
 								.replace(/\/.*$/, "");
 							const title =
-								s.title.length > 50 ? s.title.slice(0, 47) + "..." : s.title;
+								s.title.length > 50 ? `${s.title.slice(0, 47)}...` : s.title;
 							lines.push(
 								theme.fg("muted", `  \u25b8 ${title}`) +
 									theme.fg("dim", ` \u00b7 ${domain}`),
@@ -1837,7 +1837,7 @@ export default function (pi: ExtensionAPI) {
 					result.content.find((c) => c.type === "text")?.text || "";
 				const preview =
 					textContent.length > 500
-						? textContent.slice(0, 500) + "..."
+						? `${textContent.slice(0, 500)}...`
 						: textContent;
 				for (const line of preview.split("\n")) {
 					lines.push(theme.fg("dim", line));
@@ -1855,8 +1855,8 @@ export default function (pi: ExtensionAPI) {
 				} else {
 					lines.push(theme.fg("muted", "Fetching:"));
 					for (const u of details.fetchUrls.slice(0, 5)) {
-						const display = u.length > 60 ? u.slice(0, 57) + "..." : u;
-						lines.push(theme.fg("dim", "  " + display));
+						const display = u.length > 60 ? `${u.slice(0, 57)}...` : u;
+						lines.push(theme.fg("dim", `  ${display}`));
 					}
 					if (details.fetchUrls.length > 5) {
 						lines.push(
@@ -1877,14 +1877,14 @@ export default function (pi: ExtensionAPI) {
 				if (summaryPreview) {
 					const preview =
 						summaryPreview.length > 120
-							? summaryPreview.slice(0, 117) + "..."
+							? `${summaryPreview.slice(0, 117)}...`
 							: summaryPreview;
 					box.addChild(new Text(theme.fg("dim", preview), 0, 0));
 					collapsedLines++;
 				} else if (details?.curatedQueries?.length) {
 					for (const cq of details.curatedQueries.slice(0, 3)) {
 						const dq =
-							cq.query.length > 55 ? cq.query.slice(0, 52) + "..." : cq.query;
+							cq.query.length > 55 ? `${cq.query.slice(0, 52)}...` : cq.query;
 						const srcCount = cq.sources?.length ?? 0;
 						const suffix = cq.error
 							? theme.fg("error", " (error)")
@@ -1926,7 +1926,7 @@ export default function (pi: ExtensionAPI) {
 					if (fallbackLine) {
 						const preview =
 							fallbackLine.length > 120
-								? fallbackLine.slice(0, 117) + "..."
+								? `${fallbackLine.slice(0, 117)}...`
 								: fallbackLine;
 						box.addChild(new Text(theme.fg("dim", preview), 0, 0));
 						collapsedLines++;
@@ -2160,7 +2160,7 @@ export default function (pi: ExtensionAPI) {
 			const lines: string[] = [];
 			if (urlList.length === 1) {
 				const display =
-					urlList[0].length > 60 ? urlList[0].slice(0, 57) + "..." : urlList[0];
+					urlList[0].length > 60 ? `${urlList[0].slice(0, 57)}...` : urlList[0];
 				lines.push(
 					theme.fg("toolTitle", theme.bold("fetch ")) +
 						theme.fg("accent", display),
@@ -2171,8 +2171,8 @@ export default function (pi: ExtensionAPI) {
 						theme.fg("accent", `${urlList.length} URLs`),
 				);
 				for (const u of urlList.slice(0, 5)) {
-					const display = u.length > 60 ? u.slice(0, 57) + "..." : u;
-					lines.push(theme.fg("muted", "  " + display));
+					const display = u.length > 60 ? `${u.slice(0, 57)}...` : u;
+					lines.push(theme.fg("muted", `  ${display}`));
 				}
 				if (urlList.length > 5) {
 					lines.push(theme.fg("muted", `  ... and ${urlList.length - 5} more`));
@@ -2190,7 +2190,7 @@ export default function (pi: ExtensionAPI) {
 			}
 			if (prompt) {
 				const display =
-					prompt.length > 250 ? prompt.slice(0, 247) + "..." : prompt;
+					prompt.length > 250 ? `${prompt.slice(0, 247)}...` : prompt;
 				lines.push(
 					theme.fg("dim", "  prompt: ") + theme.fg("muted", `"${display}"`),
 				);
@@ -2263,15 +2263,15 @@ export default function (pi: ExtensionAPI) {
 				if (!expanded) {
 					const brief =
 						textContent.length > 200
-							? textContent.slice(0, 200) + "..."
+							? `${textContent.slice(0, 200)}...`
 							: textContent;
-					return new Text(statusLine + "\n" + theme.fg("dim", brief), 0, 0);
+					return new Text(`${statusLine}\n${theme.fg("dim", brief)}`, 0, 0);
 				}
 				const lines = [statusLine];
 				if (details?.prompt) {
 					const display =
 						details.prompt.length > 250
-							? details.prompt.slice(0, 247) + "..."
+							? `${details.prompt.slice(0, 247)}...`
 							: details.prompt;
 					lines.push(theme.fg("dim", `  prompt: "${display}"`));
 				}
@@ -2283,7 +2283,7 @@ export default function (pi: ExtensionAPI) {
 				}
 				const preview =
 					textContent.length > 500
-						? textContent.slice(0, 500) + "..."
+						? `${textContent.slice(0, 500)}...`
 						: textContent;
 				lines.push(theme.fg("dim", preview));
 				return new Text(lines.join("\n"), 0, 0);
@@ -2302,9 +2302,9 @@ export default function (pi: ExtensionAPI) {
 				result.content.find((c) => c.type === "text")?.text || "";
 			const preview =
 				textContent.length > 500
-					? textContent.slice(0, 500) + "..."
+					? `${textContent.slice(0, 500)}...`
 					: textContent;
-			return new Text(statusLine + "\n" + theme.fg("dim", preview), 0, 0);
+			return new Text(`${statusLine}\n${theme.fg("dim", preview)}`, 0, 0);
 		},
 	});
 
@@ -2501,7 +2501,7 @@ export default function (pi: ExtensionAPI) {
 			let target = "";
 			if (query) target = `query="${query}"`;
 			else if (queryIndex !== undefined) target = `queryIndex=${queryIndex}`;
-			else if (url) target = url.length > 30 ? url.slice(0, 27) + "..." : url;
+			else if (url) target = url.length > 30 ? `${url.slice(0, 27)}...` : url;
 			else if (urlIndex !== undefined) target = `urlIndex=${urlIndex}`;
 			return new Text(
 				theme.fg("toolTitle", theme.bold("get_content ")) +
@@ -2544,9 +2544,9 @@ export default function (pi: ExtensionAPI) {
 				result.content.find((c) => c.type === "text")?.text || "";
 			const preview =
 				textContent.length > 500
-					? textContent.slice(0, 500) + "..."
+					? `${textContent.slice(0, 500)}...`
 					: textContent;
-			return new Text(statusLine + "\n" + theme.fg("dim", preview), 0, 0);
+			return new Text(`${statusLine}\n${theme.fg("dim", preview)}`, 0, 0);
 		},
 	});
 
@@ -2991,7 +2991,7 @@ export default function (pi: ExtensionAPI) {
 					const urls = selected.urls.slice(0, 10);
 					for (const u of urls) {
 						const urlDisplay =
-							u.url.length > 50 ? u.url.slice(0, 47) + "..." : u.url;
+							u.url.length > 50 ? `${u.url.slice(0, 47)}...` : u.url;
 						info += `- ${urlDisplay} (${u.error || `${u.content.length} chars`})\n`;
 					}
 					if (selected.urls.length > 10) {

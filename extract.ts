@@ -153,9 +153,9 @@ async function extractWithJinaReader(
 
 function parseTimestamp(ts: string): number | null {
 	const num = Number(ts);
-	if (!isNaN(num) && num >= 0) return Math.floor(num);
+	if (!Number.isNaN(num) && num >= 0) return Math.floor(num);
 	const parts = ts.split(":").map(Number);
-	if (parts.some((p) => isNaN(p) || p < 0)) return null;
+	if (parts.some((p) => Number.isNaN(p) || p < 0)) return null;
 	if (parts.length === 3)
 		return Math.floor(parts[0] * 3600 + parts[1] * 60 + parts[2]);
 	if (parts.length === 2) return Math.floor(parts[0] * 60 + parts[1]);
@@ -629,7 +629,7 @@ export async function extractContent(
 	if (!httpResult.error) return httpResult;
 	if (
 		NON_RECOVERABLE_ERRORS.some((prefix) =>
-			httpResult.error!.startsWith(prefix),
+			httpResult.error?.startsWith(prefix),
 		)
 	)
 		return httpResult;

@@ -128,7 +128,7 @@ function readUsage(): ExaUsage {
 function writeUsage(usage: ExaUsage): void {
 	const dir = join(homedir(), ".pi");
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-	writeFileSync(USAGE_PATH, JSON.stringify(usage, null, 2) + "\n");
+	writeFileSync(USAGE_PATH, `${JSON.stringify(usage, null, 2)}\n`);
 }
 
 function reserveRequestBudget(): { exhausted: true } | null {

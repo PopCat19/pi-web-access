@@ -105,7 +105,7 @@ async function fetchTreeViaApi(
 				const display = paths.slice(0, MAX_TREE_ENTRIES).join("\n");
 				resolve(
 					truncated
-						? display + `\n... (${paths.length} total entries)`
+						? `${display}\n... (${paths.length} total entries)`
 						: display,
 				);
 			},
@@ -136,7 +136,7 @@ async function fetchReadmeViaApi(
 					);
 					resolve(
 						decoded.length > 8192
-							? decoded.slice(0, 8192) + "\n\n[README truncated at 8K chars]"
+							? `${decoded.slice(0, 8192)}\n\n[README truncated at 8K chars]`
 							: decoded,
 					);
 				} catch {

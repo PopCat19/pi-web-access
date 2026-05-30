@@ -121,7 +121,7 @@ export async function extractPDFToMarkdown(
 	const content = lines.join("\n");
 
 	// Generate output filename
-	const outputFilename = filename || sanitizeFilename(title) + ".md";
+	const outputFilename = filename || `${sanitizeFilename(title)}.md`;
 	const outputPath = join(outputDir, outputFilename);
 
 	// Ensure output directory exists

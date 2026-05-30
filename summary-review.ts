@@ -294,7 +294,7 @@ export async function generateSummaryDraft(
 	modelOverride?: string,
 	feedback?: string,
 ): Promise<{ summary: string; meta: SummaryMeta }> {
-	if (!ctx || !ctx.modelRegistry) {
+	if (!ctx?.modelRegistry) {
 		throw new Error("Summary generation context unavailable");
 	}
 

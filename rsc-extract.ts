@@ -23,7 +23,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 	for (const match of html.matchAll(scriptRegex)) {
 		let content: string;
 		try {
-			content = JSON.parse('"' + match[1] + '"');
+			content = JSON.parse(`"${match[1]}"`);
 		} catch {
 			continue;
 		}
@@ -63,7 +63,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 		if (parsedCache.has(id)) return parsedCache.get(id);
 
 		const chunk = chunkMap.get(id);
-		if (!chunk || !chunk.startsWith("[")) {
+		if (!chunk?.startsWith("[")) {
 			parsedCache.set(id, null);
 			return null;
 		}
@@ -186,7 +186,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 					const preContent = children
 						? extractNode(children as Node, { ...ctx, inCode: true })
 						: "";
-					return "```\n" + preContent + "\n```\n\n";
+					return `\`\`\`\n${preContent}\n\`\`\`\n\n`;
 				}
 				case "strong":
 				case "b":
@@ -198,11 +198,11 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 					return `- ${content.trim()}\n`;
 				case "ul":
 				case "ol":
-					return content + "\n";
+					return `${content}\n`;
 				case "blockquote":
 					return `> ${content.trim()}\n\n`;
 				case "table":
-					return extractTable(node as unknown[]) + "\n";
+					return `${extractTable(node as unknown[])}\n`;
 				case "thead":
 				case "tbody":
 				case "tr":
@@ -335,9 +335,9 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 		let md = "";
 		for (let i = 0; i < rows.length; i++) {
 			const row = rows[i].concat(Array(colCount - rows[i].length).fill(""));
-			md += "| " + row.join(" | ") + " |\n";
+			md += `| ${row.join(" | ")} |\n`;
 			if (i === headerRowCount - 1 || (headerRowCount === 0 && i === 0)) {
-				md += "| " + Array(colCount).fill("---").join(" | ") + " |\n";
+				md += `| ${Array(colCount).fill("---").join(" | ")} |\n`;
 			}
 		}
 		return md;
