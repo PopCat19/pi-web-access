@@ -2,13 +2,24 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { activityMonitor } from "./activity.js";
-import { getApiKey, API_BASE, DEFAULT_MODEL } from "./gemini-api.js";
-import { isGeminiWebAvailable, queryWithCookies } from "./gemini-web.js";
-import { isPerplexityAvailable, searchWithPerplexity, type SearchResult, type SearchResponse, type SearchOptions } from "./perplexity.js";
 import { hasExaApiKey, isExaAvailable, searchWithExa } from "./exa.js";
+import { API_BASE, DEFAULT_MODEL, getApiKey } from "./gemini-api.js";
+import { isGeminiWebAvailable, queryWithCookies } from "./gemini-web.js";
+import {
+	isPerplexityAvailable,
+	type SearchOptions,
+	type SearchResponse,
+	type SearchResult,
+	searchWithPerplexity,
+} from "./perplexity.js";
 import { isSearxngAvailable, searchWithSearxng } from "./searxng.js";
 
-export type SearchProvider = "auto" | "perplexity" | "gemini" | "exa" | "searxng";
+export type SearchProvider =
+	| "auto"
+	| "perplexity"
+	| "gemini"
+	| "exa"
+	| "searxng";
 export type ResolvedSearchProvider = Exclude<SearchProvider, "auto">;
 
 export interface AttributedSearchResponse extends SearchResponse {
@@ -17,9 +28,15 @@ export interface AttributedSearchResponse extends SearchResponse {
 
 const CONFIG_PATH = join(homedir(), ".pi", "web-search.json");
 
-let cachedSearchConfig: { searchProvider: SearchProvider; searchModel?: string } | null = null;
+let cachedSearchConfig: {
+	searchProvider: SearchProvider;
+	searchModel?: string;
+} | null = null;
 
-function getSearchConfig(): { searchProvider: SearchProvider; searchModel?: string } {
+function getSearchConfig(): {
+	searchProvider: SearchProvider;
+	searchModel?: string;
+} {
 	if (cachedSearchConfig) return cachedSearchConfig;
 	if (!existsSync(CONFIG_PATH)) {
 		cachedSearchConfig = { searchProvider: "auto", searchModel: undefined };
@@ -57,8 +74,13 @@ function normalizeSearchModel(value: unknown): string | undefined {
 }
 
 function normalizeSearchProvider(value: unknown): SearchProvider {
-	const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-	return normalized === "auto" || normalized === "perplexity" || normalized === "gemini" || normalized === "exa" || normalized === "searxng"
+	const normalized =
+		typeof value === "string" ? value.trim().toLowerCase() : "";
+	return normalized === "auto" ||
+		normalized === "perplexity" ||
+		normalized === "gemini" ||
+		normalized === "exa" ||
+		normalized === "searxng"
 		? normalized
 		: "auto";
 }
@@ -106,7 +128,10 @@ async function searchWithGemini(
 	return null;
 }
 
-export async function search(query: string, options: FullSearchOptions = {}): Promise<AttributedSearchResponse> {
+export async function search(
+	query: string,
+	options: FullSearchOptions = {},
+): Promise<AttributedSearchResponse> {
 	const config = getSearchConfig();
 	const provider = options.provider ?? config.searchProvider;
 
@@ -120,8 +145,8 @@ export async function search(query: string, options: FullSearchOptions = {}): Pr
 		if (result) return { ...result, provider: "gemini" };
 		throw new Error(
 			"Gemini search unavailable. Either:\n" +
-			"  1. Set GEMINI_API_KEY in ~/.pi/web-search.json\n" +
-			"  2. Sign into gemini.google.com in a supported Chromium-based browser"
+				"  1. Set GEMINI_API_KEY in ~/.pi/web-search.json\n" +
+				"  2. Sign into gemini.google.com in a supported Chromium-based browser",
 		);
 	}
 
@@ -132,7 +157,7 @@ export async function search(query: string, options: FullSearchOptions = {}): Pr
 			if (result && "exhausted" in result) {
 				throw new Error(
 					"Exa monthly free tier exhausted (1,000 requests). Resets next month.\n" +
-					"  Use provider: 'perplexity' or 'gemini', or upgrade at exa.ai/pricing"
+						"  Use provider: 'perplexity' or 'gemini', or upgrade at exa.ai/pricing",
 				);
 			}
 			if (result && "answer" in result) return { ...result, provider: "exa" };
@@ -193,19 +218,24 @@ export async function search(query: string, options: FullSearchOptions = {}): Pr
 	}
 
 	if (fallbackErrors.length > 0) {
-		throw new Error(`Auto provider search failed:\n  - ${fallbackErrors.join("\n  - ")}`);
+		throw new Error(
+			`Auto provider search failed:\n  - ${fallbackErrors.join("\n  - ")}`,
+		);
 	}
 
 	throw new Error(
 		"No search provider available. Either:\n" +
-		"  1. Set perplexityApiKey in ~/.pi/web-search.json\n" +
-		"  2. Set EXA_API_KEY (or exaApiKey) in ~/.pi/web-search.json\n" +
-		"  3. Set GEMINI_API_KEY in ~/.pi/web-search.json\n" +
-		"  4. Sign into gemini.google.com in a supported Chromium-based browser"
+			"  1. Set perplexityApiKey in ~/.pi/web-search.json\n" +
+			"  2. Set EXA_API_KEY (or exaApiKey) in ~/.pi/web-search.json\n" +
+			"  3. Set GEMINI_API_KEY in ~/.pi/web-search.json\n" +
+			"  4. Sign into gemini.google.com in a supported Chromium-based browser",
 	);
 }
 
-async function searchWithGeminiApi(query: string, options: SearchOptions = {}): Promise<SearchResponse | null> {
+async function searchWithGeminiApi(
+	query: string,
+	options: SearchOptions = {},
+): Promise<SearchResponse | null> {
 	const apiKey = getApiKey();
 	if (!apiKey) return null;
 
@@ -218,29 +248,40 @@ async function searchWithGeminiApi(query: string, options: SearchOptions = {}): 
 			tools: [{ google_search: {} }],
 		};
 
-		const res = await fetch(`${API_BASE}/models/${model}:generateContent?key=${apiKey}`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-			signal: AbortSignal.any([
-				AbortSignal.timeout(60000),
-				...(options.signal ? [options.signal] : []),
-			]),
-		});
+		const res = await fetch(
+			`${API_BASE}/models/${model}:generateContent?key=${apiKey}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+				signal: AbortSignal.any([
+					AbortSignal.timeout(60000),
+					...(options.signal ? [options.signal] : []),
+				]),
+			},
+		);
 
 		if (!res.ok) {
 			const errorText = await res.text();
-			throw new Error(`Gemini API error ${res.status}: ${errorText.slice(0, 300)}`);
+			throw new Error(
+				`Gemini API error ${res.status}: ${errorText.slice(0, 300)}`,
+			);
 		}
 
-		const data = await res.json() as GeminiSearchResponse;
+		const data = (await res.json()) as GeminiSearchResponse;
 		activityMonitor.logComplete(activityId, res.status);
 
-		const answer = data.candidates?.[0]?.content?.parts
-			?.map(p => p.text).filter(Boolean).join("\n") ?? "";
+		const answer =
+			data.candidates?.[0]?.content?.parts
+				?.map((p) => p.text)
+				.filter(Boolean)
+				.join("\n") ?? "";
 
 		const metadata = data.candidates?.[0]?.groundingMetadata;
-		const results = await resolveGroundingChunks(metadata?.groundingChunks, options.signal);
+		const results = await resolveGroundingChunks(
+			metadata?.groundingChunks,
+			options.signal,
+		);
 
 		if (!answer && results.length === 0) return null;
 		return { answer, results };
@@ -255,7 +296,10 @@ async function searchWithGeminiApi(query: string, options: SearchOptions = {}): 
 	}
 }
 
-async function searchWithGeminiWeb(query: string, options: SearchOptions = {}): Promise<SearchResponse | null> {
+async function searchWithGeminiWeb(
+	query: string,
+	options: SearchOptions = {},
+): Promise<SearchResponse | null> {
 	const cookies = await isGeminiWebAvailable();
 	if (!cookies) return null;
 
@@ -298,10 +342,14 @@ function buildSearchPrompt(query: string, options: SearchOptions): string {
 	}
 
 	if (options.domainFilter?.length) {
-		const includes = options.domainFilter.filter(d => !d.startsWith("-"));
-		const excludes = options.domainFilter.filter(d => d.startsWith("-")).map(d => d.slice(1));
-		if (includes.length) prompt += `\n\nOnly cite sources from: ${includes.join(", ")}`;
-		if (excludes.length) prompt += `\n\nDo not cite sources from: ${excludes.join(", ")}`;
+		const includes = options.domainFilter.filter((d) => !d.startsWith("-"));
+		const excludes = options.domainFilter
+			.filter((d) => d.startsWith("-"))
+			.map((d) => d.slice(1));
+		if (includes.length)
+			prompt += `\n\nOnly cite sources from: ${includes.join(", ")}`;
+		if (excludes.length)
+			prompt += `\n\nDo not cite sources from: ${excludes.join(", ")}`;
 	}
 
 	return prompt;
@@ -332,7 +380,9 @@ async function resolveGroundingChunks(
 		const title = chunk.web.title || "";
 		let url = chunk.web.uri || "";
 
-		if (url.includes("vertexaisearch.cloud.google.com/grounding-api-redirect")) {
+		if (
+			url.includes("vertexaisearch.cloud.google.com/grounding-api-redirect")
+		) {
 			const resolved = await resolveRedirect(url, signal);
 			if (resolved) url = resolved;
 		}
@@ -342,7 +392,10 @@ async function resolveGroundingChunks(
 	return results;
 }
 
-async function resolveRedirect(proxyUrl: string, signal?: AbortSignal): Promise<string | null> {
+async function resolveRedirect(
+	proxyUrl: string,
+	signal?: AbortSignal,
+): Promise<string | null> {
 	try {
 		const res = await fetch(proxyUrl, {
 			method: "HEAD",

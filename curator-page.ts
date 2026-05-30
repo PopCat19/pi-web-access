@@ -13,17 +13,23 @@ function buildProviderButtons(
 	hasInitialQueries: boolean,
 ): string {
 	const providers = [
-		{ value: "perplexity", label: "Perplexity", available: available.perplexity },
+		{
+			value: "perplexity",
+			label: "Perplexity",
+			available: available.perplexity,
+		},
 		{ value: "exa", label: "Exa", available: available.exa },
 		{ value: "gemini", label: "Gemini", available: available.gemini },
 	];
 
 	return providers
-		.filter(p => p.available)
+		.filter((p) => p.available)
 		.map((p) => {
 			const isDefault = p.value === selected;
 			const state = isDefault && hasInitialQueries ? "loading" : "idle";
-			const classes = ["provider-btn", state, isDefault ? "is-default" : ""].filter(Boolean).join(" ");
+			const classes = ["provider-btn", state, isDefault ? "is-default" : ""]
+				.filter(Boolean)
+				.join(" ");
 			const disabled = state === "loading" ? " disabled" : "";
 			return `<button type="button" class="${classes}" data-provider="${p.value}" data-state="${state}"${disabled}>${p.label}</button>`;
 		})
@@ -39,8 +45,20 @@ export function generateCuratorPage(
 	summaryModels: Array<{ value: string; label: string }>,
 	defaultSummaryModel: string | null,
 ): string {
-	const providerButtonsHtml = buildProviderButtons(availableProviders, defaultProvider, queries.length > 0);
-	const inlineData = safeInlineJSON({ queries, sessionToken, timeout, defaultProvider, summaryModels, defaultSummaryModel, availableProviders });
+	const providerButtonsHtml = buildProviderButtons(
+		availableProviders,
+		defaultProvider,
+		queries.length > 0,
+	);
+	const inlineData = safeInlineJSON({
+		queries,
+		sessionToken,
+		timeout,
+		defaultProvider,
+		summaryModels,
+		defaultSummaryModel,
+		availableProviders,
+	});
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -51,7 +69,7 @@ export function generateCuratorPage(
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
 <style>
 ${CSS}
 </style>
@@ -1462,12 +1480,12 @@ const SCRIPT = `(function() {
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;");
+      .replace(/"/g, "&quot;");
   }
 
   function sanitizeHref(url) {
     var value = typeof url === "string" ? url.trim() : "";
-    return /^https?:\/\//i.test(value) ? value : "#";
+    return /^https?:///i.test(value) ? value : "#";
   }
 
   function sanitizeMarkdownHtml(html) {

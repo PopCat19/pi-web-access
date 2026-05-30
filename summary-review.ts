@@ -1,9 +1,14 @@
-import { complete, getModel, type Message, type Model } from "@earendil-works/pi-ai";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import {
+	complete,
+	getModel,
+	type Message,
+	type Model,
+} from "@earendil-works/pi-ai";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { QueryResultData } from "./storage.js";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
 
 const CONFIG_PATH = join(homedir(), ".pi", "web-search.json");
 
@@ -21,7 +26,10 @@ export interface SummaryMeta {
 	edited?: boolean;
 }
 
-export type SummaryGenerationContext = Pick<ExtensionContext, "model" | "modelRegistry">;
+export type SummaryGenerationContext = Pick<
+	ExtensionContext,
+	"model" | "modelRegistry"
+>;
 
 interface WebSearchConfig {
 	summaryModel?: string;
@@ -77,7 +85,10 @@ function summarizeQueryResult(result: QueryResultData): string {
 	return lines.join("\n");
 }
 
-export function buildSummaryPrompt(results: QueryResultData[], feedback?: string): string {
+export function buildSummaryPrompt(
+	results: QueryResultData[],
+	feedback?: string,
+): string {
 	const sections = [
 		"You are writing the final web search summary for a coding assistant.",
 		"Write a concise, factual summary using only the provided search results.",
@@ -86,11 +97,13 @@ export function buildSummaryPrompt(results: QueryResultData[], feedback?: string
 		"- Include key findings and caveats.",
 		"- Do not invent sources or claims.",
 		"- If evidence is weak or conflicting, say so explicitly.",
-		"- End with a short \"Sources\" section listing the most relevant URLs.",
+		'- End with a short "Sources" section listing the most relevant URLs.',
 	];
 
 	if (feedback) {
-		sections.push("- Incorporate the user feedback provided below into the summary.");
+		sections.push(
+			"- Incorporate the user feedback provided below into the summary.",
+		);
 	}
 
 	sections.push("");
@@ -155,7 +168,9 @@ function buildDeterministicSummaryLines(results: QueryResultData[]): string[] {
 		if (preview.length > 0) {
 			lines.push(`- ${result.query}: ${preview}`);
 		} else {
-			lines.push(`- ${result.query}: returned ${result.results.length} source${result.results.length === 1 ? "" : "s"} without answer text.`);
+			lines.push(
+				`- ${result.query}: returned ${result.results.length} source${result.results.length === 1 ? "" : "s"} without answer text.`,
+			);
 		}
 
 		for (const source of result.results) {
@@ -186,11 +201,15 @@ function buildDeterministicSummaryLines(results: QueryResultData[]): string[] {
 	return lines;
 }
 
-export function buildDeterministicSummary(results: QueryResultData[]): { summary: string; meta: SummaryMeta } {
+export function buildDeterministicSummary(results: QueryResultData[]): {
+	summary: string;
+	meta: SummaryMeta;
+} {
 	const summary = buildDeterministicSummaryLines(results).join("\n").trim();
-	const nonEmptySummary = summary.length > 0
-		? summary
-		: "No completed search results were available when the curator session finished.\n\nSources\n- None";
+	const nonEmptySummary =
+		summary.length > 0
+			? summary
+			: "No completed search results were available when the curator session finished.\n\nSources\n- None";
 
 	return {
 		summary: nonEmptySummary,
@@ -210,11 +229,16 @@ async function resolveSummaryModel(
 	modelOverride?: string,
 ): Promise<{ model: Model; apiKey: string; headers?: Record<string, string> }> {
 	const config = loadConfig();
-	const normalizedOverride = typeof modelOverride === "string" ? modelOverride.trim() : (config.summaryModel ?? "");
+	const normalizedOverride =
+		typeof modelOverride === "string"
+			? modelOverride.trim()
+			: (config.summaryModel ?? "");
 	if (normalizedOverride.length > 0) {
 		const slashIndex = normalizedOverride.indexOf("/");
 		if (slashIndex <= 0 || slashIndex >= normalizedOverride.length - 1) {
-			throw new Error(`Invalid summary model: ${normalizedOverride}. Use provider/model-id.`);
+			throw new Error(
+				`Invalid summary model: ${normalizedOverride}. Use provider/model-id.`,
+			);
 		}
 		const provider = normalizedOverride.slice(0, slashIndex);
 		const modelId = normalizedOverride.slice(slashIndex + 1);
@@ -222,21 +246,31 @@ async function resolveSummaryModel(
 		if (!selectedModel) {
 			throw new Error(`Summary model not found: ${normalizedOverride}`);
 		}
-		const selectedAuth = await ctx.modelRegistry.getApiKeyAndHeaders(selectedModel);
+		const selectedAuth =
+			await ctx.modelRegistry.getApiKeyAndHeaders(selectedModel);
 		if (!selectedAuth.ok || !selectedAuth.apiKey) {
-			throw new Error(`No API key available for summary model ${normalizedOverride}`);
+			throw new Error(
+				`No API key available for summary model ${normalizedOverride}`,
+			);
 		}
-		return { model: selectedModel, apiKey: selectedAuth.apiKey, headers: selectedAuth.headers };
+		return {
+			model: selectedModel,
+			apiKey: selectedAuth.apiKey,
+			headers: selectedAuth.headers,
+		};
 	}
 
 	for (const { provider, id } of PREFERRED_SUMMARY_MODELS) {
 		const model = getModel(provider, id);
 		if (!model) continue;
 		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-		if (auth.ok && auth.apiKey) return { model, apiKey: auth.apiKey, headers: auth.headers };
+		if (auth.ok && auth.apiKey)
+			return { model, apiKey: auth.apiKey, headers: auth.headers };
 	}
 
-	throw new Error(`No API key available for summary models: ${PREFERRED_SUMMARY_MODELS.map(c => `${c.provider}/${c.id}`).join(", ")}`);
+	throw new Error(
+		`No API key available for summary models: ${PREFERRED_SUMMARY_MODELS.map((c) => `${c.provider}/${c.id}`).join(", ")}`,
+	);
 }
 
 function getTextFromContentPart(part: unknown): string {
@@ -265,7 +299,10 @@ export async function generateSummaryDraft(
 	}
 
 	const startedAt = Date.now();
-	const { model, apiKey, headers } = await resolveSummaryModel(ctx, modelOverride);
+	const { model, apiKey, headers } = await resolveSummaryModel(
+		ctx,
+		modelOverride,
+	);
 	const prompt = buildSummaryPrompt(results, feedback);
 
 	const userMessage: Message = {
@@ -274,22 +311,28 @@ export async function generateSummaryDraft(
 		timestamp: Date.now(),
 	};
 
-	const response = await complete(model, { messages: [userMessage] }, { apiKey, headers, signal });
+	const response = await complete(
+		model,
+		{ messages: [userMessage] },
+		{ apiKey, headers, signal },
+	);
 	if (response.stopReason === "aborted") {
 		throw new Error("Aborted");
 	}
 
 	const contentParts = Array.isArray(response.content) ? response.content : [];
 	const summary = contentParts
-		.map(part => getTextFromContentPart(part))
-		.filter(text => text.trim().length > 0)
+		.map((part) => getTextFromContentPart(part))
+		.filter((text) => text.trim().length > 0)
 		.join("\n")
 		.trim();
 
 	if (summary.length === 0) {
-		const partTypes = contentParts.map(part => getContentPartType(part));
+		const partTypes = contentParts.map((part) => getContentPartType(part));
 		const typesLabel = partTypes.length > 0 ? partTypes.join(", ") : "none";
-		throw new Error(`Summary model returned empty response (content parts: ${typesLabel})`);
+		throw new Error(
+			`Summary model returned empty response (content parts: ${typesLabel})`,
+		);
 	}
 
 	return {

@@ -25,7 +25,12 @@ interface ExaUsage {
 
 interface ExaAnswerResponse {
 	answer?: string;
-	citations?: Array<{ url?: string; title?: string; text?: string; publishedDate?: string }>;
+	citations?: Array<{
+		url?: string;
+		title?: string;
+		text?: string;
+		publishedDate?: string;
+	}>;
 }
 
 interface ExaSearchResponse {
@@ -86,7 +91,10 @@ function normalizeApiKey(value: unknown): string | null {
 }
 
 function getApiKey(): string | null {
-	return normalizeApiKey(process.env.EXA_API_KEY) ?? normalizeApiKey(loadConfig().exaApiKey);
+	return (
+		normalizeApiKey(process.env.EXA_API_KEY) ??
+		normalizeApiKey(loadConfig().exaApiKey)
+	);
 }
 
 function getCurrentMonth(): string {
@@ -98,7 +106,10 @@ function normalizeUsage(raw: unknown): ExaUsage {
 	if (!raw || typeof raw !== "object") return { month, count: 0 };
 	const data = raw as { month?: unknown; count?: unknown };
 	const parsedMonth = typeof data.month === "string" ? data.month : month;
-	const parsedCount = typeof data.count === "number" && Number.isFinite(data.count) ? data.count : 0;
+	const parsedCount =
+		typeof data.count === "number" && Number.isFinite(data.count)
+			? data.count
+			: 0;
 	if (parsedMonth !== month) return { month, count: 0 };
 	return { month: parsedMonth, count: Math.max(0, Math.floor(parsedCount)) };
 }
@@ -130,7 +141,9 @@ function reserveRequestBudget(): { exhausted: true } | null {
 	const nextCount = usage.count + 1;
 	if (nextCount >= WARNING_THRESHOLD && warnedMonth !== usage.month) {
 		warnedMonth = usage.month;
-		console.error(`Exa usage warning: ${nextCount}/${MONTHLY_LIMIT} monthly requests used.`);
+		console.error(
+			`Exa usage warning: ${nextCount}/${MONTHLY_LIMIT} monthly requests used.`,
+		);
 	}
 
 	writeUsage({ month: usage.month, count: nextCount });
@@ -154,14 +167,17 @@ function recencyToStartDate(filter: string): string {
 	return new Date(now.getTime() - days * 86400000).toISOString();
 }
 
-function mapDomainFilter(domainFilter: string[] | undefined): { includeDomains?: string[]; excludeDomains?: string[] } {
+function mapDomainFilter(domainFilter: string[] | undefined): {
+	includeDomains?: string[];
+	excludeDomains?: string[];
+} {
 	if (!domainFilter?.length) return {};
 	const includeDomains = domainFilter
-		.filter(d => !d.startsWith("-") && d.trim().length > 0)
-		.map(d => d.trim());
+		.filter((d) => !d.startsWith("-") && d.trim().length > 0)
+		.map((d) => d.trim());
 	const excludeDomains = domainFilter
-		.filter(d => d.startsWith("-"))
-		.map(d => d.slice(1).trim())
+		.filter((d) => d.startsWith("-"))
+		.map((d) => d.slice(1).trim())
 		.filter(Boolean);
 	return {
 		...(includeDomains.length ? { includeDomains } : {}),
@@ -171,19 +187,27 @@ function mapDomainFilter(domainFilter: string[] | undefined): { includeDomains?:
 
 function normalizeHighlights(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
-	return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+	return value.filter(
+		(item): item is string =>
+			typeof item === "string" && item.trim().length > 0,
+	);
 }
 
-function buildAnswerFromSearchResults(results: ExaSearchResponse["results"]): string {
+function buildAnswerFromSearchResults(
+	results: ExaSearchResponse["results"],
+): string {
 	if (!results?.length) return "";
 	const parts: string[] = [];
 	for (let i = 0; i < results.length; i++) {
 		const item = results[i];
 		if (!item?.url) continue;
 		const highlights = normalizeHighlights(item.highlights);
-		const content = highlights.length > 0
-			? highlights.join(" ")
-			: typeof item.text === "string" ? item.text.trim().slice(0, 1000) : "";
+		const content =
+			highlights.length > 0
+				? highlights.join(" ")
+				: typeof item.text === "string"
+					? item.text.trim().slice(0, 1000)
+					: "";
 		if (!content) continue;
 		const sourceTitle = item.title || `Source ${i + 1}`;
 		parts.push(`${content}\nSource: ${sourceTitle} (${item.url})`);
@@ -191,7 +215,9 @@ function buildAnswerFromSearchResults(results: ExaSearchResponse["results"]): st
 	return parts.join("\n\n");
 }
 
-function mapResults(results: ExaSearchResponse["results"] | ExaAnswerResponse["citations"]): SearchResponse["results"] {
+function mapResults(
+	results: ExaSearchResponse["results"] | ExaAnswerResponse["citations"],
+): SearchResponse["results"] {
 	if (!Array.isArray(results)) return [];
 	const mapped: SearchResponse["results"] = [];
 	for (let i = 0; i < results.length; i++) {
@@ -206,12 +232,20 @@ function mapResults(results: ExaSearchResponse["results"] | ExaAnswerResponse["c
 	return mapped;
 }
 
-function mapInlineContent(results: ExaSearchResponse["results"]): ExtractedContent[] {
+function mapInlineContent(
+	results: ExaSearchResponse["results"],
+): ExtractedContent[] {
 	if (!results?.length) return [];
 	return results
-		.filter((r): r is NonNullable<ExaSearchResponse["results"]>[number] & { url: string; text: string } =>
-			!!r?.url && typeof r.text === "string" && r.text.length > 0)
-		.map(r => ({
+		.filter(
+			(
+				r,
+			): r is NonNullable<ExaSearchResponse["results"]>[number] & {
+				url: string;
+				text: string;
+			} => !!r?.url && typeof r.text === "string" && r.text.length > 0,
+		)
+		.map((r) => ({
 			url: r.url,
 			title: r.title || "",
 			content: r.text,
@@ -219,16 +253,32 @@ function mapInlineContent(results: ExaSearchResponse["results"]): ExtractedConte
 		}));
 }
 
-export async function callExaMcp(
+const MCP_RETRY_MAX = 3;
+const MCP_RETRY_DELAYS_MS = [3000, 5000, 10000];
+const MCP_ATTEMPT_TIMEOUT_MS = 30000;
+
+function isRetryableStatus(status: number): boolean {
+	return status >= 500 || status === 429;
+}
+
+function isRetryableError(err: Error): boolean {
+	const message = err instanceof Error ? err.message.toLowerCase() : "";
+	if (err.name === "TimeoutError" || err.name === "AbortError") return false;
+	if (message.includes("abort")) return false;
+	if (message.includes("empty response")) return true;
+	return err instanceof TypeError;
+}
+
+async function callExaMcpOnce(
 	toolName: string,
 	args: Record<string, unknown>,
-	signal?: AbortSignal,
+	signal: AbortSignal,
 ): Promise<string> {
 	const response = await fetch(EXA_MCP_URL, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
-			"Accept": "application/json, text/event-stream",
+			Accept: "application/json, text/event-stream",
 		},
 		body: JSON.stringify({
 			jsonrpc: "2.0",
@@ -239,16 +289,23 @@ export async function callExaMcp(
 				arguments: args,
 			},
 		}),
-		signal: requestSignal(signal),
+		signal,
 	});
 
 	if (!response.ok) {
 		const errorText = await response.text();
-		throw new Error(`Exa MCP error ${response.status}: ${errorText.slice(0, 300)}`);
+		const status = response.status;
+		const err = new Error(
+			`Exa MCP error ${status}: ${errorText.slice(0, 300)}`,
+		);
+		if (isRetryableStatus(status)) {
+			(err as Error & { retryable: boolean }).retryable = true;
+		}
+		throw err;
 	}
 
 	const body = await response.text();
-	const dataLines = body.split("\n").filter(line => line.startsWith("data:"));
+	const dataLines = body.split("\n").filter((line) => line.startsWith("data:"));
 
 	let parsed: ExaMcpRpcResponse | null = null;
 	for (const line of dataLines) {
@@ -260,8 +317,7 @@ export async function callExaMcp(
 				parsed = candidate;
 				break;
 			}
-		} catch {
-		}
+		} catch {}
 	}
 
 	if (!parsed) {
@@ -270,8 +326,7 @@ export async function callExaMcp(
 			if (candidate?.result || candidate?.error) {
 				parsed = candidate;
 			}
-		} catch {
-		}
+		} catch {}
 	}
 
 	if (!parsed) {
@@ -279,21 +334,25 @@ export async function callExaMcp(
 	}
 
 	if (parsed.error) {
-		const code = typeof parsed.error.code === "number" ? ` ${parsed.error.code}` : "";
+		const code =
+			typeof parsed.error.code === "number" ? ` ${parsed.error.code}` : "";
 		const message = parsed.error.message || "Unknown error";
 		throw new Error(`Exa MCP error${code}: ${message}`);
 	}
 
 	if (parsed.result?.isError) {
 		const message = parsed.result.content
-			?.find(item => item.type === "text" && typeof item.text === "string")
+			?.find((item) => item.type === "text" && typeof item.text === "string")
 			?.text?.trim();
 		throw new Error(message || "Exa MCP returned an error");
 	}
 
-	const text = parsed.result?.content
-		?.find(item => item.type === "text" && typeof item.text === "string" && item.text.trim().length > 0)
-		?.text;
+	const text = parsed.result?.content?.find(
+		(item) =>
+			item.type === "text" &&
+			typeof item.text === "string" &&
+			item.text.trim().length > 0,
+	)?.text;
 
 	if (!text) {
 		throw new Error("Exa MCP returned empty content");
@@ -302,24 +361,77 @@ export async function callExaMcp(
 	return text;
 }
 
-function parseMcpResults(text: string): McpParsedResult[] | null {
-	const blocks = text.split(/(?=^Title: )/m).filter(block => block.trim().length > 0);
-	const parsed = blocks.map(block => {
-		const title = block.match(/^Title: (.+)/m)?.[1]?.trim() ?? "";
-		const url = block.match(/^URL: (.+)/m)?.[1]?.trim() ?? "";
-		let content = "";
-		const textStart = block.indexOf("\nText: ");
-		if (textStart >= 0) {
-			content = block.slice(textStart + 7).trim();
-		} else {
-			const hlMatch = block.match(/\nHighlights:\s*\n/);
-			if (hlMatch?.index != null) {
-				content = block.slice(hlMatch.index + hlMatch[0].length).trim();
+export async function callExaMcp(
+	toolName: string,
+	args: Record<string, unknown>,
+	signal?: AbortSignal,
+): Promise<string> {
+	let lastError: Error | null = null;
+
+	for (let attempt = 0; attempt < MCP_RETRY_MAX; attempt++) {
+		if (signal?.aborted) break;
+
+		try {
+			const attemptSignal = signal
+				? AbortSignal.any([signal, AbortSignal.timeout(MCP_ATTEMPT_TIMEOUT_MS)])
+				: AbortSignal.timeout(MCP_ATTEMPT_TIMEOUT_MS);
+			return await callExaMcpOnce(toolName, args, attemptSignal);
+		} catch (err) {
+			lastError = err instanceof Error ? err : new Error(String(err));
+
+			if (attempt === MCP_RETRY_MAX - 1) break;
+
+			const retryable =
+				(lastError as Error & { retryable?: boolean }).retryable === true ||
+				isRetryableError(lastError);
+
+			if (!retryable) break;
+
+			const delay = MCP_RETRY_DELAYS_MS[attempt];
+			if (delay > 0) {
+				try {
+					await new Promise<void>((resolve, reject) => {
+						const timer = setTimeout(resolve, delay);
+						const onAbort = () => {
+							clearTimeout(timer);
+							reject(new DOMException("Aborted", "AbortError"));
+						};
+						if (signal) {
+							signal.addEventListener("abort", onAbort, { once: true });
+						}
+					});
+				} catch {
+					break;
+				}
 			}
 		}
-		content = content.replace(/\n---\s*$/, "").trim();
-		return { title, url, content };
-	}).filter(result => result.url.length > 0);
+	}
+
+	throw lastError ?? new Error("Exa MCP call failed");
+}
+
+function parseMcpResults(text: string): McpParsedResult[] | null {
+	const blocks = text
+		.split(/(?=^Title: )/m)
+		.filter((block) => block.trim().length > 0);
+	const parsed = blocks
+		.map((block) => {
+			const title = block.match(/^Title: (.+)/m)?.[1]?.trim() ?? "";
+			const url = block.match(/^URL: (.+)/m)?.[1]?.trim() ?? "";
+			let content = "";
+			const textStart = block.indexOf("\nText: ");
+			if (textStart >= 0) {
+				content = block.slice(textStart + 7).trim();
+			} else {
+				const hlMatch = block.match(/\nHighlights:\s*\n/);
+				if (hlMatch?.index != null) {
+					content = block.slice(hlMatch.index + hlMatch[0].length).trim();
+				}
+			}
+			content = content.replace(/\n---\s*$/, "").trim();
+			return { title, url, content };
+		})
+		.filter((result) => result.url.length > 0);
 	return parsed.length > 0 ? parsed : null;
 }
 
@@ -338,8 +450,8 @@ function buildAnswerFromMcpResults(results: McpParsedResult[]): string {
 
 function mapMcpInlineContent(results: McpParsedResult[]): ExtractedContent[] {
 	return results
-		.filter(result => result.content.length > 0)
-		.map(result => ({
+		.filter((result) => result.content.length > 0)
+		.map((result) => ({
 			url: result.url,
 			title: result.title,
 			content: result.content,
@@ -357,18 +469,34 @@ function buildMcpQuery(query: string, options: ExaSearchOptions): string {
 	if (options.recencyFilter) {
 		const now = new Date();
 		switch (options.recencyFilter) {
-			case "day": parts.push("past 24 hours"); break;
-			case "week": parts.push("past week"); break;
-			case "month": parts.push(`${now.toLocaleString("en", { month: "long" })} ${now.getFullYear()}`); break;
-			case "year": parts.push(String(now.getFullYear())); break;
+			case "day":
+				parts.push("past 24 hours");
+				break;
+			case "week":
+				parts.push("past week");
+				break;
+			case "month":
+				parts.push(
+					`${now.toLocaleString("en", { month: "long" })} ${now.getFullYear()}`,
+				);
+				break;
+			case "year":
+				parts.push(String(now.getFullYear()));
+				break;
 		}
 	}
 	return parts.join(" ");
 }
 
-async function searchWithExaMcp(query: string, options: ExaSearchOptions = {}): Promise<SearchResponse | null> {
+async function searchWithExaMcp(
+	query: string,
+	options: ExaSearchOptions = {},
+): Promise<SearchResponse | null> {
 	const enrichedQuery = buildMcpQuery(query, options);
-	const activityId = activityMonitor.logStart({ type: "api", query: enrichedQuery });
+	const activityId = activityMonitor.logStart({
+		type: "api",
+		query: enrichedQuery,
+	});
 
 	try {
 		const text = await callExaMcp(
@@ -425,7 +553,10 @@ export function hasExaApiKey(): boolean {
 	return !!getApiKey();
 }
 
-export async function searchWithExa(query: string, options: ExaSearchOptions = {}): Promise<ExaSearchResult> {
+export async function searchWithExa(
+	query: string,
+	options: ExaSearchOptions = {},
+): Promise<ExaSearchResult> {
 	const apiKey = getApiKey();
 	if (!apiKey) {
 		return searchWithExaMcp(query, options);
@@ -434,10 +565,11 @@ export async function searchWithExa(query: string, options: ExaSearchOptions = {
 	const budget = reserveRequestBudget();
 	if (budget) return budget;
 
-	const useSearch = options.includeContent
-		|| !!options.recencyFilter
-		|| !!options.domainFilter?.length
-		|| !!(options.numResults && options.numResults !== 5);
+	const useSearch =
+		options.includeContent ||
+		!!options.recencyFilter ||
+		!!options.domainFilter?.length ||
+		!!(options.numResults && options.numResults !== 5);
 
 	const activityId = activityMonitor.logStart({ type: "api", query });
 
@@ -458,10 +590,12 @@ export async function searchWithExa(query: string, options: ExaSearchOptions = {
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				throw new Error(`Exa API error ${response.status}: ${errorText.slice(0, 300)}`);
+				throw new Error(
+					`Exa API error ${response.status}: ${errorText.slice(0, 300)}`,
+				);
 			}
 
-			const data = await response.json() as ExaAnswerResponse;
+			const data = (await response.json()) as ExaAnswerResponse;
 			activityMonitor.logComplete(activityId, response.status);
 			return {
 				answer: data.answer || "",
@@ -469,7 +603,9 @@ export async function searchWithExa(query: string, options: ExaSearchOptions = {
 			};
 		}
 
-		const startDate = options.recencyFilter ? recencyToStartDate(options.recencyFilter) : null;
+		const startDate = options.recencyFilter
+			? recencyToStartDate(options.recencyFilter)
+			: null;
 		const domainFilters = mapDomainFilter(options.domainFilter);
 		const response = await fetch(EXA_SEARCH_URL, {
 			method: "POST",
@@ -493,10 +629,12 @@ export async function searchWithExa(query: string, options: ExaSearchOptions = {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			throw new Error(`Exa API error ${response.status}: ${errorText.slice(0, 300)}`);
+			throw new Error(
+				`Exa API error ${response.status}: ${errorText.slice(0, 300)}`,
+			);
 		}
 
-		const data = await response.json() as ExaSearchResponse;
+		const data = (await response.json()) as ExaSearchResponse;
 		activityMonitor.logComplete(activityId, response.status);
 
 		const mapped: SearchResponse = {

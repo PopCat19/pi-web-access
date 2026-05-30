@@ -1,7 +1,7 @@
 import { activityMonitor } from "./activity.js";
-import { getApiKey, API_BASE, DEFAULT_MODEL } from "./gemini-api.js";
+import { type ExtractedContent, extractHeadingTitle } from "./extract.js";
+import { API_BASE, DEFAULT_MODEL, getApiKey } from "./gemini-api.js";
 import { isGeminiWebAvailable, queryWithCookies } from "./gemini-web.js";
-import { extractHeadingTitle, type ExtractedContent } from "./extract.js";
 
 const EXTRACTION_PROMPT = `Extract the complete readable content from this URL as clean markdown.
 Include the page title, all text content, code blocks, and tables.
@@ -21,7 +21,10 @@ export async function extractWithUrlContext(
 	const apiKey = getApiKey();
 	if (!apiKey) return null;
 
-	const activityId = activityMonitor.logStart({ type: "api", query: `url_context: ${url}` });
+	const activityId = activityMonitor.logStart({
+		type: "api",
+		query: `url_context: ${url}`,
+	});
 
 	try {
 		const model = DEFAULT_MODEL;
@@ -30,34 +33,43 @@ export async function extractWithUrlContext(
 			tools: [{ url_context: {} }],
 		};
 
-		const res = await fetch(`${API_BASE}/models/${model}:generateContent?key=${apiKey}`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-			signal: AbortSignal.any([
-				AbortSignal.timeout(60000),
-				...(signal ? [signal] : []),
-			]),
-		});
+		const res = await fetch(
+			`${API_BASE}/models/${model}:generateContent?key=${apiKey}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+				signal: AbortSignal.any([
+					AbortSignal.timeout(60000),
+					...(signal ? [signal] : []),
+				]),
+			},
+		);
 
 		if (!res.ok) {
 			activityMonitor.logComplete(activityId, res.status);
 			return null;
 		}
 
-		const data = await res.json() as UrlContextResponse;
+		const data = (await res.json()) as UrlContextResponse;
 		activityMonitor.logComplete(activityId, res.status);
 
 		const metadata = data.candidates?.[0]?.url_context_metadata;
 		if (metadata?.url_metadata?.length) {
 			const status = metadata.url_metadata[0].url_retrieval_status;
-			if (status === "URL_RETRIEVAL_STATUS_UNSAFE" || status === "URL_RETRIEVAL_STATUS_ERROR") {
+			if (
+				status === "URL_RETRIEVAL_STATUS_UNSAFE" ||
+				status === "URL_RETRIEVAL_STATUS_ERROR"
+			) {
 				return null;
 			}
 		}
 
-		const content = data.candidates?.[0]?.content?.parts
-			?.map(p => p.text).filter(Boolean).join("\n") ?? "";
+		const content =
+			data.candidates?.[0]?.content?.parts
+				?.map((p) => p.text)
+				.filter(Boolean)
+				.join("\n") ?? "";
 
 		if (!content || content.length < 50) return null;
 
@@ -82,7 +94,10 @@ export async function extractWithGeminiWeb(
 	const cookies = await isGeminiWebAvailable();
 	if (!cookies) return null;
 
-	const activityId = activityMonitor.logStart({ type: "api", query: `gemini_web: ${url}` });
+	const activityId = activityMonitor.logStart({
+		type: "api",
+		query: `gemini_web: ${url}`,
+	});
 
 	try {
 		const text = await queryWithCookies(EXTRACTION_PROMPT + url, cookies, {
@@ -110,7 +125,9 @@ export async function extractWithGeminiWeb(
 }
 
 function extractTitleFromContent(text: string, url: string): string {
-	return extractHeadingTitle(text) ?? (new URL(url).pathname.split("/").pop() || url);
+	return (
+		extractHeadingTitle(text) ?? (new URL(url).pathname.split("/").pop() || url)
+	);
 }
 
 interface UrlContextResponse {

@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { pbkdf2Sync, createDecipheriv } from "node:crypto";
+import { createDecipheriv, pbkdf2Sync } from "node:crypto";
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir, homedir, platform } from "node:os";
+import { homedir, platform, tmpdir } from "node:os";
 import { join } from "node:path";
 
 export type CookieMap = Record<string, string>;
@@ -67,15 +67,17 @@ const LINUX_BROWSER_CONFIGS: BrowserConfig[] = [
 	{ name: "Chrome", baseDir: ".config/google-chrome", secretToolApp: "chrome" },
 ];
 
-export async function getGoogleCookies(
-	options?: { profile?: string; requiredCookies?: string[] },
-): Promise<{ cookies: CookieMap; warnings: string[] } | null> {
+export async function getGoogleCookies(options?: {
+	profile?: string;
+	requiredCookies?: string[];
+}): Promise<{ cookies: CookieMap; warnings: string[] } | null> {
 	const currentPlatform = platform();
-	const configs = currentPlatform === "darwin"
-		? MACOS_BROWSER_CONFIGS
-		: currentPlatform === "linux"
-			? LINUX_BROWSER_CONFIGS
-			: [];
+	const configs =
+		currentPlatform === "darwin"
+			? MACOS_BROWSER_CONFIGS
+			: currentPlatform === "linux"
+				? LINUX_BROWSER_CONFIGS
+				: [];
 	if (configs.length === 0) return null;
 
 	const warnings: string[] = [];
@@ -92,7 +94,13 @@ export async function getGoogleCookies(
 			continue;
 		}
 
-		const key = pbkdf2Sync(password, "saltysalt", currentPlatform === "darwin" ? 1003 : 1, 16, "sha1");
+		const key = pbkdf2Sync(
+			password,
+			"saltysalt",
+			currentPlatform === "darwin" ? 1003 : 1,
+			16,
+			"sha1",
+		);
 		const tempDir = mkdtempSync(join(tmpdir(), "pi-chrome-cookies-"));
 
 		try {
@@ -115,7 +123,10 @@ export async function getGoogleCookies(
 				if (!ALL_COOKIE_NAMES.has(name)) continue;
 				if (cookies[name]) continue;
 
-				let value = typeof row.value === "string" && row.value.length > 0 ? row.value : null;
+				let value =
+					typeof row.value === "string" && row.value.length > 0
+						? row.value
+						: null;
 				if (!value) {
 					const encrypted = row.encrypted_value;
 					if (encrypted instanceof Uint8Array) {
@@ -125,7 +136,10 @@ export async function getGoogleCookies(
 				if (value) cookies[name] = value;
 			}
 
-			if (options?.requiredCookies?.length && !options.requiredCookies.every((name) => Boolean(cookies[name]))) {
+			if (
+				options?.requiredCookies?.length &&
+				!options.requiredCookies.every((name) => Boolean(cookies[name]))
+			) {
 				continue;
 			}
 
@@ -138,7 +152,11 @@ export async function getGoogleCookies(
 	return null;
 }
 
-function decryptCookieValue(encrypted: Uint8Array, key: Buffer, stripHash: boolean): string | null {
+function decryptCookieValue(
+	encrypted: Uint8Array,
+	key: Buffer,
+	stripHash: boolean,
+): string | null {
 	const buf = Buffer.from(encrypted);
 	if (buf.length < 3) return null;
 
@@ -152,9 +170,13 @@ function decryptCookieValue(encrypted: Uint8Array, key: Buffer, stripHash: boole
 		const iv = Buffer.alloc(16, 0x20);
 		const decipher = createDecipheriv("aes-128-cbc", key, iv);
 		decipher.setAutoPadding(false);
-		const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+		const plaintext = Buffer.concat([
+			decipher.update(ciphertext),
+			decipher.final(),
+		]);
 		const unpadded = removePkcs7Padding(plaintext);
-		const bytes = stripHash && unpadded.length >= 32 ? unpadded.subarray(32) : unpadded;
+		const bytes =
+			stripHash && unpadded.length >= 32 ? unpadded.subarray(32) : unpadded;
 		const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 		let i = 0;
 		while (i < decoded.length && decoded.charCodeAt(i) < 0x20) i++;
@@ -176,7 +198,8 @@ function readBrowserPassword(
 	currentPlatform: ReturnType<typeof platform>,
 ): Promise<string | null> {
 	if (currentPlatform === "darwin") {
-		if (!config.keychainAccount || !config.keychainService) return Promise.resolve(null);
+		if (!config.keychainAccount || !config.keychainService)
+			return Promise.resolve(null);
 		return readKeychainPassword(config.keychainAccount, config.keychainService);
 	}
 	if (currentPlatform === "linux") {
@@ -185,14 +208,20 @@ function readBrowserPassword(
 	return Promise.resolve(null);
 }
 
-function readKeychainPassword(account: string, service: string): Promise<string | null> {
+function readKeychainPassword(
+	account: string,
+	service: string,
+): Promise<string | null> {
 	return new Promise((resolve) => {
 		execFile(
 			"security",
 			["find-generic-password", "-w", "-a", account, "-s", service],
 			{ timeout: 5000 },
 			(err, stdout) => {
-				if (err) { resolve(null); return; }
+				if (err) {
+					resolve(null);
+					return;
+				}
 				resolve(stdout.trim() || null);
 			},
 		);
@@ -225,9 +254,10 @@ async function importSqlite(): Promise<typeof import("node:sqlite") | null> {
 	if (sqliteModule) return sqliteModule;
 	const orig = process.emitWarning.bind(process);
 	process.emitWarning = ((warning: string | Error, ...args: unknown[]) => {
-		const msg = typeof warning === "string" ? warning : warning?.message ?? "";
+		const msg =
+			typeof warning === "string" ? warning : (warning?.message ?? "");
 		if (msg.includes("SQLite is an experimental feature")) return;
-		return (orig as Function)(warning, ...args);
+		return orig(warning, ...args);
 	}) as typeof process.emitWarning;
 	try {
 		sqliteModule = await import("node:sqlite");
@@ -253,7 +283,9 @@ async function readMetaVersion(dbPath: string): Promise<number> {
 	if (supportsReadBigInts()) opts.readBigInts = true;
 	const db = new sqlite.DatabaseSync(dbPath, opts);
 	try {
-		const rows = db.prepare("SELECT value FROM meta WHERE key = 'version'").all() as Array<Record<string, unknown>>;
+		const rows = db
+			.prepare("SELECT value FROM meta WHERE key = 'version'")
+			.all() as Array<Record<string, unknown>>;
 		const val = rows[0]?.value;
 		if (typeof val === "number") return Math.floor(val);
 		if (typeof val === "bigint") return Number(val);
@@ -317,6 +349,5 @@ function copySidecar(srcDb: string, targetDb: string, suffix: string): void {
 	if (!existsSync(sidecar)) return;
 	try {
 		copyFileSync(sidecar, `${targetDb}${suffix}`);
-	} catch {
-	}
+	} catch {}
 }

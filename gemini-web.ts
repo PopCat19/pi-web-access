@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, basename } from "node:path";
+import { basename, join } from "node:path";
 import { type CookieMap, getGoogleCookies } from "./chrome-cookies.js";
 
 const GEMINI_APP_URL = "https://gemini.google.com/app";
@@ -70,16 +70,21 @@ function getChromeProfileFromConfig(): string | undefined {
 	return loadConfig().chromeProfile;
 }
 
-export async function isGeminiWebAvailable(chromeProfile?: string): Promise<CookieMap | null> {
+export async function isGeminiWebAvailable(
+	chromeProfile?: string,
+): Promise<CookieMap | null> {
 	const result = await getGoogleCookies({
-		profile: normalizeChromeProfile(chromeProfile) ?? getChromeProfileFromConfig(),
+		profile:
+			normalizeChromeProfile(chromeProfile) ?? getChromeProfileFromConfig(),
 		requiredCookies: REQUIRED_COOKIES,
 	});
 	if (!result) return null;
 	return result.cookies;
 }
 
-export async function getActiveGoogleEmail(cookies: CookieMap): Promise<string | null> {
+export async function getActiveGoogleEmail(
+	cookies: CookieMap,
+): Promise<string | null> {
 	const cookieHeader = buildCookieHeader(cookies);
 	if (!cookieHeader) return null;
 
@@ -92,8 +97,7 @@ export async function getActiveGoogleEmail(cookies: CookieMap): Promise<string |
 		);
 		const email = extractEmailFromGeminiHtml(html);
 		if (email) return email;
-	} catch {
-	}
+	} catch {}
 
 	try {
 		const response = await fetchWithCookieRedirects(
@@ -113,7 +117,10 @@ export async function queryWithCookies(
 	cookieMap: CookieMap,
 	options: GeminiWebOptions = {},
 ): Promise<string> {
-	const model = options.model && MODEL_HEADERS[options.model] ? options.model : "gemini-2.5-flash";
+	const model =
+		options.model && MODEL_HEADERS[options.model]
+			? options.model
+			: "gemini-2.5-flash";
 	const timeoutMs = options.timeoutMs ?? 120000;
 
 	let fullPrompt = prompt;
@@ -121,12 +128,27 @@ export async function queryWithCookies(
 		fullPrompt = `${fullPrompt}\n\nYouTube video: ${options.youtubeUrl}`;
 	}
 
-	const result = await runGeminiWebOnce(fullPrompt, cookieMap, model, options.files, timeoutMs, options.signal);
+	const result = await runGeminiWebOnce(
+		fullPrompt,
+		cookieMap,
+		model,
+		options.files,
+		timeoutMs,
+		options.signal,
+	);
 
 	if (isModelUnavailable(result.errorCode) && model !== "gemini-2.5-flash") {
-		const fallback = await runGeminiWebOnce(fullPrompt, cookieMap, "gemini-2.5-flash", options.files, timeoutMs, options.signal);
+		const fallback = await runGeminiWebOnce(
+			fullPrompt,
+			cookieMap,
+			"gemini-2.5-flash",
+			options.files,
+			timeoutMs,
+			options.signal,
+		);
 		if (fallback.errorMessage) throw new Error(fallback.errorMessage);
-		if (!fallback.text) throw new Error("Gemini Web returned empty response (fallback model)");
+		if (!fallback.text)
+			throw new Error("Gemini Web returned empty response (fallback model)");
 		return fallback.text;
 	}
 
@@ -194,8 +216,7 @@ async function runGeminiWebOnce(
 		try {
 			const json = JSON.parse(trimJsonEnvelope(rawText));
 			errorCode = extractErrorCode(json);
-		} catch {
-		}
+		} catch {}
 		return {
 			text: "",
 			errorCode,
@@ -208,14 +229,21 @@ async function fetchAccessToken(
 	cookieHeader: string,
 	signal: AbortSignal,
 ): Promise<string> {
-	const html = await fetchWithCookieRedirects(GEMINI_APP_URL, cookieHeader, 10, signal);
+	const html = await fetchWithCookieRedirects(
+		GEMINI_APP_URL,
+		cookieHeader,
+		10,
+		signal,
+	);
 
 	for (const key of ["SNlM0e", "thykhd"]) {
 		const match = html.match(new RegExp(`"${key}":"(.*?)"`));
 		if (match?.[1]) return match[1];
 	}
 
-	throw new Error("Unable to authenticate with Gemini. Make sure you're signed into gemini.google.com in a supported Chromium-based browser.");
+	throw new Error(
+		"Unable to authenticate with Gemini. Make sure you're signed into gemini.google.com in a supported Chromium-based browser.",
+	);
 }
 
 async function fetchWithCookieRedirects(
@@ -297,7 +325,9 @@ function findFirstEmail(text: string): string | null {
 function normalizeEmail(value: string | undefined): string | null {
 	if (!value) return null;
 	const normalized = decodeEmailEscapes(value.trim());
-	return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(normalized) ? normalized : null;
+	return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(normalized)
+		? normalized
+		: null;
 }
 
 function decodeEmailEscapes(value: string): string {
@@ -306,7 +336,7 @@ function decodeEmailEscapes(value: string): string {
 		.replace(/\\x40/gi, "@")
 		.replace(/&#64;/gi, "@")
 		.replace(/&commat;/gi, "@")
-		.replace(/\\"/g, "\"")
+		.replace(/\\"/g, '"')
 		.replace(/\\\\/g, "\\");
 }
 
@@ -341,7 +371,9 @@ async function uploadFile(
 
 	if (!res.ok) {
 		const text = await res.text();
-		throw new Error(`File upload failed: ${res.status} (${text.slice(0, 200)})`);
+		throw new Error(
+			`File upload failed: ${res.status} (${text.slice(0, 200)})`,
+		);
 	}
 
 	return { id: await res.text(), name: fileName };
@@ -359,7 +391,10 @@ function buildFReqPayload(
 	return JSON.stringify([null, JSON.stringify(innerList)]);
 }
 
-function withTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+function withTimeout(
+	signal: AbortSignal | undefined,
+	timeoutMs: number,
+): AbortSignal {
 	const timeout = AbortSignal.timeout(timeoutMs);
 	return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
@@ -416,12 +451,13 @@ function parseStreamGenerateResponse(rawText: string): GeminiWebResult {
 				body = parsed;
 				break;
 			}
-		} catch {
-		}
+		} catch {}
 	}
 
 	const candidateList = getNestedValue(body, [4]);
-	const firstCandidate = Array.isArray(candidateList) ? (candidateList as unknown[])[0] : undefined;
+	const firstCandidate = Array.isArray(candidateList)
+		? (candidateList as unknown[])[0]
+		: undefined;
 	const textRaw = getNestedValue(firstCandidate, [1, 0]) as string | undefined;
 
 	let text = textRaw ?? "";

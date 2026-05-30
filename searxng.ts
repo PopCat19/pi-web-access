@@ -2,7 +2,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { activityMonitor } from "./activity.js";
-import type { SearchResult, SearchResponse, SearchOptions } from "./perplexity.js";
+import type {
+	SearchOptions,
+	SearchResponse,
+	SearchResult,
+} from "./perplexity.js";
 
 const CONFIG_PATH = join(homedir(), ".pi", "web-search.json");
 
@@ -31,7 +35,7 @@ function loadConfig(): WebSearchConfig {
 
 function getSearxngUrl(): string | null {
 	const config = loadConfig();
-	const url = (process.env.SEARXNG_URL ?? config.searxngUrl);
+	const url = process.env.SEARXNG_URL ?? config.searxngUrl;
 	return url ? url.replace(/\/$/, "") + "/search" : null;
 }
 
@@ -40,15 +44,18 @@ export function isSearxngAvailable(): boolean {
 	return !!(process.env.SEARXNG_URL ?? config.searxngUrl);
 }
 
-export async function searchWithSearxng(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
+export async function searchWithSearxng(
+	query: string,
+	options: SearchOptions = {},
+): Promise<SearchResponse> {
 	const activityId = activityMonitor.logStart({ type: "api", query });
 	const baseUrl = getSearxngUrl();
 
 	if (!baseUrl) {
 		throw new Error(
 			"SearXNG URL not found. Either:\n" +
-			"  1. Set \"searxngUrl\" in ~/.pi/web-search.json\n" +
-			"  2. Set SEARXNG_URL environment variable"
+				'  1. Set "searxngUrl" in ~/.pi/web-search.json\n' +
+				"  2. Set SEARXNG_URL environment variable",
 		);
 	}
 
@@ -103,11 +110,13 @@ export async function searchWithSearxng(query: string, options: SearchOptions = 
 		throw new Error(`SearXNG API returned invalid JSON: ${message}`);
 	}
 
-	const results: SearchResult[] = (data.results || []).map((r: any) => ({
-		title: r.title || r.pretty_url || "Source",
-		url: r.url,
-		snippet: r.content || "",
-	})).slice(0, options.numResults ?? 10);
+	const results: SearchResult[] = (data.results || [])
+		.map((r: any) => ({
+			title: r.title || r.pretty_url || "Source",
+			url: r.url,
+			snippet: r.content || "",
+		}))
+		.slice(0, options.numResults ?? 10);
 
 	// Construct answer from results (similar to Exa's behavior)
 	let answer = data.infoboxes?.[0]?.content || "";

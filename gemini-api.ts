@@ -29,7 +29,10 @@ function loadConfig(): GeminiApiConfig {
 	}
 }
 
-function withTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+function withTimeout(
+	signal: AbortSignal | undefined,
+	timeoutMs: number,
+): AbortSignal {
 	const timeout = AbortSignal.timeout(timeoutMs);
 	return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
@@ -41,7 +44,10 @@ function normalizeApiKey(value: unknown): string | null {
 }
 
 export function getApiKey(): string | null {
-	return normalizeApiKey(process.env.GEMINI_API_KEY) ?? normalizeApiKey(loadConfig().geminiApiKey);
+	return (
+		normalizeApiKey(process.env.GEMINI_API_KEY) ??
+		normalizeApiKey(loadConfig().geminiApiKey)
+	);
 }
 
 export function isGeminiApiAvailable(): boolean {
@@ -73,10 +79,7 @@ export async function queryGeminiApiWithVideo(
 	const body = {
 		contents: [
 			{
-				parts: [
-					{ fileData },
-					{ text: prompt },
-				],
+				parts: [{ fileData }, { text: prompt }],
 			},
 		],
 	};
@@ -90,7 +93,9 @@ export async function queryGeminiApiWithVideo(
 
 	if (!res.ok) {
 		const errorText = await res.text();
-		throw new Error(`Gemini API error ${res.status}: ${errorText.slice(0, 300)}`);
+		throw new Error(
+			`Gemini API error ${res.status}: ${errorText.slice(0, 300)}`,
+		);
 	}
 
 	const data = (await res.json()) as GenerateContentResponse;
