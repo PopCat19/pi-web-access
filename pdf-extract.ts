@@ -29,33 +29,18 @@ const DEFAULT_OUTPUT_DIR = join(homedir(), "Downloads");
 /**
  * Extract text from a PDF buffer and save to markdown file
  */
-export async function extractPDFToMarkdown(
-	buffer: ArrayBuffer,
-	url: string,
-	options: PDFExtractOptions = {},
-): Promise<PDFExtractResult> {
-	const {
-		maxPages = DEFAULT_MAX_PAGES,
-		outputDir = DEFAULT_OUTPUT_DIR,
-		filename,
-	} = options;
+export async function extractPDFToMarkdown(buffer: ArrayBuffer, url: string, options: PDFExtractOptions = {}): Promise<PDFExtractResult> {
+	const { maxPages = DEFAULT_MAX_PAGES, outputDir = DEFAULT_OUTPUT_DIR, filename } = options;
 
-	const safeMaxPages = Number.isFinite(maxPages)
-		? Math.max(1, Math.floor(maxPages))
-		: DEFAULT_MAX_PAGES;
+	const safeMaxPages = Number.isFinite(maxPages) ? Math.max(1, Math.floor(maxPages)) : DEFAULT_MAX_PAGES;
 
 	const pdf = await getDocumentProxy(new Uint8Array(buffer));
 	const metadata = await pdf.getMetadata();
-	const metadataInfo =
-		metadata.info && typeof metadata.info === "object"
-			? (metadata.info as Record<string, unknown>)
-			: null;
+	const metadataInfo = metadata.info && typeof metadata.info === "object" ? (metadata.info as Record<string, unknown>) : null;
 
 	// Extract title from metadata or URL
-	const metaTitle =
-		typeof metadataInfo?.Title === "string" ? metadataInfo.Title : undefined;
-	const metaAuthor =
-		typeof metadataInfo?.Author === "string" ? metadataInfo.Author : undefined;
+	const metaTitle = typeof metadataInfo?.Title === "string" ? metadataInfo.Title : undefined;
+	const metaAuthor = typeof metadataInfo?.Author === "string" ? metadataInfo.Author : undefined;
 	const urlTitle = extractTitleFromURL(url);
 	const title = metaTitle?.trim() || urlTitle;
 
@@ -89,9 +74,7 @@ export async function extractPDFToMarkdown(
 	lines.push(`# ${title}`);
 	lines.push("");
 	lines.push(`> Source: ${url}`);
-	lines.push(
-		`> Pages: ${pdf.numPages}${truncated ? ` (extracted first ${pagesToExtract})` : ""}`,
-	);
+	lines.push(`> Pages: ${pdf.numPages}${truncated ? ` (extracted first ${pagesToExtract})` : ""}`);
 	if (metaAuthor) {
 		lines.push(`> Author: ${metaAuthor}`);
 	}
@@ -113,9 +96,7 @@ export async function extractPDFToMarkdown(
 		lines.push("");
 		lines.push("---");
 		lines.push("");
-		lines.push(
-			`*[Truncated: Only first ${pagesToExtract} of ${pdf.numPages} pages extracted]*`,
-		);
+		lines.push(`*[Truncated: Only first ${pagesToExtract} of ${pdf.numPages} pages extracted]*`);
 	}
 
 	const content = lines.join("\n");

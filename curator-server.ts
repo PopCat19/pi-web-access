@@ -19,12 +19,7 @@ export interface CuratorServerOptions {
 }
 
 export interface CuratorServerCallbacks {
-	onSubmit: (payload: {
-		selectedQueryIndices: number[];
-		summary?: string;
-		summaryMeta?: SummaryMeta;
-		rawResults?: boolean;
-	}) => void;
+	onSubmit: (payload: { selectedQueryIndices: number[]; summary?: string; summaryMeta?: SummaryMeta; rawResults?: boolean }) => void;
 	onCancel: (reason: "user" | "timeout" | "stale") => void;
 	onProviderChange: (provider: string) => void;
 	onAddSearch: (
@@ -36,12 +31,7 @@ export interface CuratorServerCallbacks {
 		results: Array<{ title: string; url: string; domain: string }>;
 		provider: string;
 	}>;
-	onSummarize: (
-		selectedQueryIndices: number[],
-		signal: AbortSignal,
-		model?: string,
-		feedback?: string,
-	) => Promise<{ summary: string; meta: SummaryMeta }>;
+	onSummarize: (selectedQueryIndices: number[], signal: AbortSignal, model?: string, feedback?: string) => Promise<{ summary: string; meta: SummaryMeta }>;
 	onRewriteQuery: (query: string, signal: AbortSignal) => Promise<string>;
 }
 
@@ -94,10 +84,7 @@ function parseJSONBody(req: IncomingMessage): Promise<unknown> {
 	});
 }
 
-async function parseBodyOrSend(
-	req: IncomingMessage,
-	res: ServerResponse,
-): Promise<unknown | null> {
+async function parseBodyOrSend(req: IncomingMessage, res: ServerResponse): Promise<unknown | null> {
 	try {
 		return await parseJSONBody(req);
 	} catch (err) {
@@ -151,27 +138,16 @@ function normalizeSummaryMeta(value: unknown): SummaryMeta | null {
 	if (model !== null && typeof model !== "string") return null;
 
 	const durationMs = meta.durationMs;
-	if (
-		typeof durationMs !== "number" ||
-		!Number.isFinite(durationMs) ||
-		durationMs < 0
-	)
-		return null;
+	if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs < 0) return null;
 
 	const tokenEstimate = meta.tokenEstimate;
-	if (
-		typeof tokenEstimate !== "number" ||
-		!Number.isFinite(tokenEstimate) ||
-		tokenEstimate < 0
-	)
-		return null;
+	if (typeof tokenEstimate !== "number" || !Number.isFinite(tokenEstimate) || tokenEstimate < 0) return null;
 
 	const fallbackUsed = meta.fallbackUsed;
 	if (typeof fallbackUsed !== "boolean") return null;
 
 	const fallbackReason = meta.fallbackReason;
-	if (fallbackReason !== undefined && typeof fallbackReason !== "string")
-		return null;
+	if (fallbackReason !== undefined && typeof fallbackReason !== "string") return null;
 
 	const edited = meta.edited;
 	if (edited !== undefined && typeof edited !== "boolean") return null;
@@ -186,19 +162,8 @@ function normalizeSummaryMeta(value: unknown): SummaryMeta | null {
 	};
 }
 
-export function startCuratorServer(
-	options: CuratorServerOptions,
-	callbacks: CuratorServerCallbacks,
-): Promise<CuratorServerHandle> {
-	const {
-		queries,
-		sessionToken,
-		timeout,
-		availableProviders,
-		defaultProvider,
-		summaryModels,
-		defaultSummaryModel,
-	} = options;
+export function startCuratorServer(options: CuratorServerOptions, callbacks: CuratorServerCallbacks): Promise<CuratorServerHandle> {
+	const { queries, sessionToken, timeout, availableProviders, defaultProvider, summaryModels, defaultSummaryModel } = options;
 	let browserConnected = false;
 	let lastHeartbeatAt = Date.now();
 	let completed = false;
@@ -276,23 +241,12 @@ export function startCuratorServer(
 		sseBuffer.push(payload);
 	}
 
-	const pageHtml = generateCuratorPage(
-		queries,
-		sessionToken,
-		timeout,
-		availableProviders,
-		defaultProvider,
-		summaryModels,
-		defaultSummaryModel,
-	);
+	const pageHtml = generateCuratorPage(queries, sessionToken, timeout, availableProviders, defaultProvider, summaryModels, defaultSummaryModel);
 
 	const server = http.createServer(async (req, res) => {
 		try {
 			const method = req.method || "GET";
-			const url = new URL(
-				req.url || "/",
-				`http://${req.headers.host || "127.0.0.1"}`,
-			);
+			const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
 
 			if (method === "GET" && url.pathname === "/") {
 				const token = url.searchParams.get("session");
@@ -423,11 +377,7 @@ export function startCuratorServer(
 				const qi = nextQueryIndex++;
 				touchHeartbeat();
 				try {
-					const result = await callbacks.onAddSearch(
-						query.trim(),
-						qi,
-						provider,
-					);
+					const result = await callbacks.onAddSearch(query.trim(), qi, provider);
 					sendJson(res, 200, {
 						ok: true,
 						queryIndex: qi,
@@ -441,10 +391,7 @@ export function startCuratorServer(
 						ok: true,
 						queryIndex: qi,
 						error: message,
-						provider:
-							typeof provider === "string" && provider.length > 0
-								? provider
-								: undefined,
+						provider: typeof provider === "string" && provider.length > 0 ? provider : undefined,
 					});
 				}
 				return;
@@ -459,13 +406,10 @@ export function startCuratorServer(
 					return;
 				}
 
-				const parsed = normalizeSelectedIndices(
-					(body as { selected?: unknown }).selected,
-					{
-						allowEmpty: false,
-						maxExclusive: nextQueryIndex,
-					},
-				);
+				const parsed = normalizeSelectedIndices((body as { selected?: unknown }).selected, {
+					allowEmpty: false,
+					maxExclusive: nextQueryIndex,
+				});
 				if (!parsed.ok) {
 					sendJson(res, 400, { ok: false, error: parsed.error });
 					return;
@@ -483,10 +427,7 @@ export function startCuratorServer(
 				}
 
 				const bodyFeedback = (body as { feedback?: unknown }).feedback;
-				const feedback =
-					typeof bodyFeedback === "string" && bodyFeedback.trim().length > 0
-						? bodyFeedback.trim()
-						: undefined;
+				const feedback = typeof bodyFeedback === "string" && bodyFeedback.trim().length > 0 ? bodyFeedback.trim() : undefined;
 
 				abortInFlightSummarize();
 				const controller = new AbortController();
@@ -494,12 +435,7 @@ export function startCuratorServer(
 				const requestId = ++summarizeRequestSeq;
 
 				try {
-					const result = await callbacks.onSummarize(
-						parsed.indices,
-						controller.signal,
-						model,
-						feedback,
-					);
+					const result = await callbacks.onSummarize(parsed.indices, controller.signal, model, feedback);
 					if (requestId !== summarizeRequestSeq || state === "COMPLETED") {
 						sendJson(res, 409, {
 							ok: false,
@@ -513,8 +449,7 @@ export function startCuratorServer(
 						meta: result.meta,
 					});
 				} catch (err) {
-					const message =
-						err instanceof Error ? err.message : "Summary generation failed";
+					const message = err instanceof Error ? err.message : "Summary generation failed";
 					const status = controller.signal.aborted ? 409 : 500;
 					sendJson(res, status, { ok: false, error: message });
 				} finally {
@@ -542,10 +477,7 @@ export function startCuratorServer(
 				req.on("close", () => controller.abort());
 				touchHeartbeat();
 				try {
-					const rewritten = await callbacks.onRewriteQuery(
-						query.trim(),
-						controller.signal,
-					);
+					const rewritten = await callbacks.onRewriteQuery(query.trim(), controller.signal);
 					sendJson(res, 200, { ok: true, query: rewritten });
 				} catch (err) {
 					const message = err instanceof Error ? err.message : "Rewrite failed";
@@ -560,13 +492,10 @@ export function startCuratorServer(
 				if (!body) return;
 				if (!validateToken(body, res)) return;
 
-				const parsed = normalizeSelectedIndices(
-					(body as { selected?: unknown }).selected,
-					{
-						allowEmpty: true,
-						maxExclusive: nextQueryIndex,
-					},
-				);
+				const parsed = normalizeSelectedIndices((body as { selected?: unknown }).selected, {
+					allowEmpty: true,
+					maxExclusive: nextQueryIndex,
+				});
 				if (!parsed.ok) {
 					sendJson(res, 400, { ok: false, error: parsed.error });
 					return;
@@ -605,8 +534,7 @@ export function startCuratorServer(
 					sendJson(res, 409, { ok: false, error: "Session closed" });
 					return;
 				}
-				const rawResults =
-					(body as { rawResults?: unknown }).rawResults === true;
+				const rawResults = (body as { rawResults?: unknown }).rawResults === true;
 				sendJson(res, 200, { ok: true });
 				setImmediate(() =>
 					callbacks.onSubmit({

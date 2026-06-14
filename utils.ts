@@ -2,8 +2,7 @@ export function formatSeconds(s: number): string {
 	const h = Math.floor(s / 3600);
 	const m = Math.floor((s % 3600) / 60);
 	const sec = s % 60;
-	if (h > 0)
-		return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+	if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 	return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
@@ -18,11 +17,7 @@ export function readExecError(err: unknown): {
 	const code = (err as { code?: string }).code;
 	const message = (err as { message?: string }).message ?? "";
 	const stderrRaw = (err as { stderr?: Buffer | string }).stderr;
-	const stderr = Buffer.isBuffer(stderrRaw)
-		? stderrRaw.toString("utf-8")
-		: typeof stderrRaw === "string"
-			? stderrRaw
-			: "";
+	const stderr = Buffer.isBuffer(stderrRaw) ? stderrRaw.toString("utf-8") : typeof stderrRaw === "string" ? stderrRaw : "";
 	return { code, stderr, message };
 }
 
@@ -32,11 +27,7 @@ export function isTimeoutError(err: unknown): boolean {
 	const name = (err as { name?: string }).name;
 	const code = (err as { code?: string }).code;
 	const message = (err as { message?: string }).message ?? "";
-	return (
-		name === "AbortError" ||
-		code === "ETIMEDOUT" ||
-		message.toLowerCase().includes("timed out")
-	);
+	return name === "AbortError" || code === "ETIMEDOUT" || message.toLowerCase().includes("timed out");
 }
 
 export function trimErrorText(text: string): string {
@@ -45,11 +36,9 @@ export function trimErrorText(text: string): string {
 
 export function mapFfmpegError(err: unknown): string {
 	const { code, stderr, message } = readExecError(err);
-	if (code === "ENOENT")
-		return "ffmpeg is not installed. Install with: brew install ffmpeg";
+	if (code === "ENOENT") return "ffmpeg is not installed. Install with: brew install ffmpeg";
 	if (isTimeoutError(err)) return "ffmpeg timed out extracting frame";
-	if (stderr.includes("403"))
-		return "Stream URL returned 403 — may have expired, try again";
+	if (stderr.includes("403")) return "Stream URL returned 403 — may have expired, try again";
 	const snippet = trimErrorText(stderr || message);
 	return snippet ? `ffmpeg failed: ${snippet}` : "ffmpeg failed";
 }

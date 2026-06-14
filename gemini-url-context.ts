@@ -14,10 +14,7 @@ function shouldRethrow(err: unknown): boolean {
 	return message.startsWith("Failed to parse ");
 }
 
-export async function extractWithUrlContext(
-	url: string,
-	signal?: AbortSignal,
-): Promise<ExtractedContent | null> {
+export async function extractWithUrlContext(url: string, signal?: AbortSignal): Promise<ExtractedContent | null> {
 	const apiKey = getApiKey();
 	if (!apiKey) return null;
 
@@ -33,18 +30,12 @@ export async function extractWithUrlContext(
 			tools: [{ url_context: {} }],
 		};
 
-		const res = await fetch(
-			`${API_BASE}/models/${model}:generateContent?key=${apiKey}`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-				signal: AbortSignal.any([
-					AbortSignal.timeout(60000),
-					...(signal ? [signal] : []),
-				]),
-			},
-		);
+		const res = await fetch(`${API_BASE}/models/${model}:generateContent?key=${apiKey}`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+			signal: AbortSignal.any([AbortSignal.timeout(60000), ...(signal ? [signal] : [])]),
+		});
 
 		if (!res.ok) {
 			activityMonitor.logComplete(activityId, res.status);
@@ -57,10 +48,7 @@ export async function extractWithUrlContext(
 		const metadata = data.candidates?.[0]?.url_context_metadata;
 		if (metadata?.url_metadata?.length) {
 			const status = metadata.url_metadata[0].url_retrieval_status;
-			if (
-				status === "URL_RETRIEVAL_STATUS_UNSAFE" ||
-				status === "URL_RETRIEVAL_STATUS_ERROR"
-			) {
+			if (status === "URL_RETRIEVAL_STATUS_UNSAFE" || status === "URL_RETRIEVAL_STATUS_ERROR") {
 				return null;
 			}
 		}
@@ -87,10 +75,7 @@ export async function extractWithUrlContext(
 	}
 }
 
-export async function extractWithGeminiWeb(
-	url: string,
-	signal?: AbortSignal,
-): Promise<ExtractedContent | null> {
+export async function extractWithGeminiWeb(url: string, signal?: AbortSignal): Promise<ExtractedContent | null> {
 	const cookies = await isGeminiWebAvailable();
 	if (!cookies) return null;
 
@@ -125,9 +110,7 @@ export async function extractWithGeminiWeb(
 }
 
 function extractTitleFromContent(text: string, url: string): string {
-	return (
-		extractHeadingTitle(text) ?? (new URL(url).pathname.split("/").pop() || url)
-	);
+	return extractHeadingTitle(text) ?? (new URL(url).pathname.split("/").pop() || url);
 }
 
 interface UrlContextResponse {

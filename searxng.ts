@@ -2,11 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { activityMonitor } from "./activity.js";
-import type {
-	SearchOptions,
-	SearchResponse,
-	SearchResult,
-} from "./perplexity.js";
+import type { SearchOptions, SearchResponse, SearchResult } from "./perplexity.js";
 
 const CONFIG_PATH = join(homedir(), ".pi", "web-search.json");
 
@@ -44,19 +40,12 @@ export function isSearxngAvailable(): boolean {
 	return !!(process.env.SEARXNG_URL ?? config.searxngUrl);
 }
 
-export async function searchWithSearxng(
-	query: string,
-	options: SearchOptions = {},
-): Promise<SearchResponse> {
+export async function searchWithSearxng(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
 	const activityId = activityMonitor.logStart({ type: "api", query });
 	const baseUrl = getSearxngUrl();
 
 	if (!baseUrl) {
-		throw new Error(
-			"SearXNG URL not found. Either:\n" +
-				'  1. Set "searxngUrl" in ~/.pi/web-search.json\n' +
-				"  2. Set SEARXNG_URL environment variable",
-		);
+		throw new Error("SearXNG URL not found. Either:\n" + '  1. Set "searxngUrl" in ~/.pi/web-search.json\n' + "  2. Set SEARXNG_URL environment variable");
 	}
 
 	const url = new URL(baseUrl);

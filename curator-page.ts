@@ -7,11 +7,7 @@ function safeInlineJSON(data: unknown): string {
 		.replace(/\u2029/g, "\\u2029");
 }
 
-function buildProviderButtons(
-	available: { perplexity: boolean; exa: boolean; gemini: boolean },
-	selected: string,
-	hasInitialQueries: boolean,
-): string {
+function buildProviderButtons(available: { perplexity: boolean; exa: boolean; gemini: boolean }, selected: string, hasInitialQueries: boolean): string {
 	const providers = [
 		{
 			value: "perplexity",
@@ -27,9 +23,7 @@ function buildProviderButtons(
 		.map((p) => {
 			const isDefault = p.value === selected;
 			const state = isDefault && hasInitialQueries ? "loading" : "idle";
-			const classes = ["provider-btn", state, isDefault ? "is-default" : ""]
-				.filter(Boolean)
-				.join(" ");
+			const classes = ["provider-btn", state, isDefault ? "is-default" : ""].filter(Boolean).join(" ");
 			const disabled = state === "loading" ? " disabled" : "";
 			return `<button type="button" class="${classes}" data-provider="${p.value}" data-state="${state}"${disabled}>${p.label}</button>`;
 		})
@@ -45,11 +39,7 @@ export function generateCuratorPage(
 	summaryModels: Array<{ value: string; label: string }>,
 	defaultSummaryModel: string | null,
 ): string {
-	const providerButtonsHtml = buildProviderButtons(
-		availableProviders,
-		defaultProvider,
-		queries.length > 0,
-	);
+	const providerButtonsHtml = buildProviderButtons(availableProviders, defaultProvider, queries.length > 0);
 	const inlineData = safeInlineJSON({
 		queries,
 		sessionToken,

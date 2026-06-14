@@ -17,8 +17,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 
 	// Parse all RSC chunks into a map
 	const chunkMap = new Map<string, string>();
-	const scriptRegex =
-		/<script>self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)<\/script>/g;
+	const scriptRegex = /<script>self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)<\/script>/g;
 
 	for (const match of html.matchAll(scriptRegex)) {
 		let content: string;
@@ -82,10 +81,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 	type Node = unknown;
 	const visitedRefs = new Set<string>();
 
-	function extractNode(
-		node: Node,
-		ctx = { inTable: false, inCode: false },
-	): string {
+	function extractNode(node: Node, ctx = { inTable: false, inCode: false }): string {
 		if (node === null || node === undefined) return "";
 
 		if (typeof node === "string") {
@@ -101,11 +97,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 				return result;
 			}
 			// Filter out RSC-specific artifacts, but preserve content inside code blocks
-			if (
-				!ctx.inCode &&
-				(node === "$undefined" || node === "$" || /^\$[A-Z]/.test(node))
-			)
-				return "";
+			if (!ctx.inCode && (node === "$undefined" || node === "$" || /^\$[A-Z]/.test(node))) return "";
 			return node.trim() ? node : "";
 		}
 
@@ -119,21 +111,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 			const props = (node[3] || {}) as Record<string, unknown>;
 
 			// Skip non-content
-			const skipTags = [
-				"script",
-				"style",
-				"svg",
-				"path",
-				"circle",
-				"link",
-				"meta",
-				"template",
-				"button",
-				"input",
-				"nav",
-				"footer",
-				"aside",
-			];
+			const skipTags = ["script", "style", "svg", "path", "circle", "link", "meta", "template", "button", "input", "nav", "footer", "aside"];
 			if (skipTags.includes(tag)) return "";
 
 			// Component ref like $L25
@@ -177,15 +155,11 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 				case "p":
 					return ctx.inTable ? content : `${content.trim()}\n\n`;
 				case "code": {
-					const codeContent = children
-						? extractNode(children as Node, { ...ctx, inCode: true })
-						: "";
+					const codeContent = children ? extractNode(children as Node, { ...ctx, inCode: true }) : "";
 					return ctx.inCode ? codeContent : `\`${codeContent}\``;
 				}
 				case "pre": {
-					const preContent = children
-						? extractNode(children as Node, { ...ctx, inCode: true })
-						: "";
+					const preContent = children ? extractNode(children as Node, { ...ctx, inCode: true }) : "";
 					return `\`\`\`\n${preContent}\n\`\`\`\n\n`;
 				}
 				case "strong":
@@ -216,9 +190,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 					return content;
 				case "a": {
 					const href = props.href as string | undefined;
-					return href && !href.startsWith("#")
-						? `[${content}](${href})`
-						: content;
+					return href && !href.startsWith("#") ? `[${content}](${href})` : content;
 				}
 				default:
 					return content;
@@ -310,11 +282,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 					.replace(/\\/g, "\\\\") // Escape backslashes first
 					.replace(/\|/g, "\\|"); // Then escape pipes
 				cells.push(text);
-			} else if (
-				node[0] === "$" &&
-				typeof node[1] === "string" &&
-				(node[1] as string).startsWith("$L")
-			) {
+			} else if (node[0] === "$" && typeof node[1] === "string" && (node[1] as string).startsWith("$L")) {
 				// Component ref for a cell
 				const refId = (node[1] as string).slice(2);
 				if (!visitedRefs.has(refId)) {
@@ -365,11 +333,7 @@ export function extractRSCContent(html: string): RSCExtractResult | null {
 		visitedRefs.clear();
 		const text = extractNode(parsed);
 
-		if (
-			text.trim().length > 50 &&
-			!text.includes("page was not found") &&
-			!text.includes("404")
-		) {
+		if (text.trim().length > 50 && !text.includes("page was not found") && !text.includes("404")) {
 			contentParts.push({ order: parseInt(id, 16), text: text.trim() });
 		}
 	}

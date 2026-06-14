@@ -22,74 +22,47 @@ export async function checkGhAvailable(): Promise<boolean> {
 export function showGhHint(): void {
 	if (!ghHintShown) {
 		ghHintShown = true;
-		console.error(
-			"[pi-web-access] Install `gh` CLI for better GitHub repo access including private repos.",
-		);
+		console.error("[pi-web-access] Install `gh` CLI for better GitHub repo access including private repos.");
 	}
 }
 
-export async function checkRepoSize(
-	owner: string,
-	repo: string,
-): Promise<number | null> {
+export async function checkRepoSize(owner: string, repo: string): Promise<number | null> {
 	if (!(await checkGhAvailable())) return null;
 
 	return new Promise((resolve) => {
-		execFile(
-			"gh",
-			["api", `repos/${owner}/${repo}`, "--jq", ".size"],
-			{ timeout: 10000 },
-			(err, stdout) => {
-				if (err) {
-					resolve(null);
-					return;
-				}
-				const kb = parseInt(stdout.trim(), 10);
-				resolve(Number.isNaN(kb) ? null : kb);
-			},
-		);
+		execFile("gh", ["api", `repos/${owner}/${repo}`, "--jq", ".size"], { timeout: 10000 }, (err, stdout) => {
+			if (err) {
+				resolve(null);
+				return;
+			}
+			const kb = parseInt(stdout.trim(), 10);
+			resolve(Number.isNaN(kb) ? null : kb);
+		});
 	});
 }
 
-async function getDefaultBranch(
-	owner: string,
-	repo: string,
-): Promise<string | null> {
+async function getDefaultBranch(owner: string, repo: string): Promise<string | null> {
 	if (!(await checkGhAvailable())) return null;
 
 	return new Promise((resolve) => {
-		execFile(
-			"gh",
-			["api", `repos/${owner}/${repo}`, "--jq", ".default_branch"],
-			{ timeout: 10000 },
-			(err, stdout) => {
-				if (err) {
-					resolve(null);
-					return;
-				}
-				const branch = stdout.trim();
-				resolve(branch || null);
-			},
-		);
+		execFile("gh", ["api", `repos/${owner}/${repo}`, "--jq", ".default_branch"], { timeout: 10000 }, (err, stdout) => {
+			if (err) {
+				resolve(null);
+				return;
+			}
+			const branch = stdout.trim();
+			resolve(branch || null);
+		});
 	});
 }
 
-async function fetchTreeViaApi(
-	owner: string,
-	repo: string,
-	ref: string,
-): Promise<string | null> {
+async function fetchTreeViaApi(owner: string, repo: string, ref: string): Promise<string | null> {
 	if (!(await checkGhAvailable())) return null;
 
 	return new Promise((resolve) => {
 		execFile(
 			"gh",
-			[
-				"api",
-				`repos/${owner}/${repo}/git/trees/${ref}?recursive=1`,
-				"--jq",
-				".tree[].path",
-			],
+			["api", `repos/${owner}/${repo}/git/trees/${ref}?recursive=1`, "--jq", ".tree[].path"],
 			{ timeout: 15000, maxBuffer: 5 * 1024 * 1024 },
 			(err, stdout) => {
 				if (err) {
@@ -103,67 +76,38 @@ async function fetchTreeViaApi(
 				}
 				const truncated = paths.length > MAX_TREE_ENTRIES;
 				const display = paths.slice(0, MAX_TREE_ENTRIES).join("\n");
-				resolve(
-					truncated
-						? `${display}\n... (${paths.length} total entries)`
-						: display,
-				);
+				resolve(truncated ? `${display}\n... (${paths.length} total entries)` : display);
 			},
 		);
 	});
 }
 
-async function fetchReadmeViaApi(
-	owner: string,
-	repo: string,
-	ref: string,
-): Promise<string | null> {
+async function fetchReadmeViaApi(owner: string, repo: string, ref: string): Promise<string | null> {
 	if (!(await checkGhAvailable())) return null;
 
 	return new Promise((resolve) => {
-		execFile(
-			"gh",
-			["api", `repos/${owner}/${repo}/readme?ref=${ref}`, "--jq", ".content"],
-			{ timeout: 10000 },
-			(err, stdout) => {
-				if (err) {
-					resolve(null);
-					return;
-				}
-				try {
-					const decoded = Buffer.from(stdout.trim(), "base64").toString(
-						"utf-8",
-					);
-					resolve(
-						decoded.length > 8192
-							? `${decoded.slice(0, 8192)}\n\n[README truncated at 8K chars]`
-							: decoded,
-					);
-				} catch {
-					resolve(null);
-				}
-			},
-		);
+		execFile("gh", ["api", `repos/${owner}/${repo}/readme?ref=${ref}`, "--jq", ".content"], { timeout: 10000 }, (err, stdout) => {
+			if (err) {
+				resolve(null);
+				return;
+			}
+			try {
+				const decoded = Buffer.from(stdout.trim(), "base64").toString("utf-8");
+				resolve(decoded.length > 8192 ? `${decoded.slice(0, 8192)}\n\n[README truncated at 8K chars]` : decoded);
+			} catch {
+				resolve(null);
+			}
+		});
 	});
 }
 
-async function fetchFileViaApi(
-	owner: string,
-	repo: string,
-	path: string,
-	ref: string,
-): Promise<string | null> {
+async function fetchFileViaApi(owner: string, repo: string, path: string, ref: string): Promise<string | null> {
 	if (!(await checkGhAvailable())) return null;
 
 	return new Promise((resolve) => {
 		execFile(
 			"gh",
-			[
-				"api",
-				`repos/${owner}/${repo}/contents/${path}?ref=${ref}`,
-				"--jq",
-				".content",
-			],
+			["api", `repos/${owner}/${repo}/contents/${path}?ref=${ref}`, "--jq", ".content"],
 			{ timeout: 10000, maxBuffer: 2 * 1024 * 1024 },
 			(err, stdout) => {
 				if (err) {
@@ -180,13 +124,7 @@ async function fetchFileViaApi(
 	});
 }
 
-export async function fetchViaApi(
-	url: string,
-	owner: string,
-	repo: string,
-	info: GitHubUrlInfo,
-	sizeNote?: string,
-): Promise<ExtractedContent | null> {
+export async function fetchViaApi(url: string, owner: string, repo: string, info: GitHubUrlInfo, sizeNote?: string): Promise<ExtractedContent | null> {
 	const ref = info.ref || (await getDefaultBranch(owner, repo));
 	if (!ref) return null;
 
@@ -216,10 +154,7 @@ export async function fetchViaApi(
 		};
 	}
 
-	const [tree, readme] = await Promise.all([
-		fetchTreeViaApi(owner, repo, ref),
-		fetchReadmeViaApi(owner, repo, ref),
-	]);
+	const [tree, readme] = await Promise.all([fetchTreeViaApi(owner, repo, ref), fetchReadmeViaApi(owner, repo, ref)]);
 
 	if (!tree && !readme) return null;
 
@@ -235,13 +170,9 @@ export async function fetchViaApi(
 		lines.push("");
 	}
 
-	lines.push(
-		"This is an API-only view. Clone the repo or use `read`/`bash` for deeper exploration.",
-	);
+	lines.push("This is an API-only view. Clone the repo or use `read`/`bash` for deeper exploration.");
 
-	const title = info.path
-		? `${owner}/${repo} - ${info.path}`
-		: `${owner}/${repo}`;
+	const title = info.path ? `${owner}/${repo} - ${info.path}` : `${owner}/${repo}`;
 	return {
 		url,
 		title,

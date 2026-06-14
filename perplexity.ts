@@ -64,9 +64,7 @@ function normalizeApiKey(value: unknown): string | null {
 
 function getApiKey(): string {
 	const config = loadConfig();
-	const key =
-		normalizeApiKey(process.env.PERPLEXITY_API_KEY) ??
-		normalizeApiKey(config.perplexityApiKey);
+	const key = normalizeApiKey(process.env.PERPLEXITY_API_KEY) ?? normalizeApiKey(config.perplexityApiKey);
 	if (!key) {
 		throw new Error(
 			"Perplexity API key not found. Either:\n" +
@@ -103,16 +101,10 @@ function validateDomainFilter(domains: string[]): string[] {
 
 export function isPerplexityAvailable(): boolean {
 	const config = loadConfig();
-	return !!(
-		normalizeApiKey(process.env.PERPLEXITY_API_KEY) ??
-		normalizeApiKey(config.perplexityApiKey)
-	);
+	return !!(normalizeApiKey(process.env.PERPLEXITY_API_KEY) ?? normalizeApiKey(config.perplexityApiKey));
 }
 
-export async function searchWithPerplexity(
-	query: string,
-	options: SearchOptions = {},
-): Promise<SearchResponse> {
+export async function searchWithPerplexity(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
 	checkRateLimit();
 
 	const activityId = activityMonitor.logStart({ type: "api", query });
@@ -181,9 +173,7 @@ export async function searchWithPerplexity(
 		throw new Error(`Perplexity API returned invalid JSON: ${message}`);
 	}
 
-	const answer =
-		(data.choices as Array<{ message?: { content?: string } }>)?.[0]?.message
-			?.content || "";
+	const answer = (data.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content || "";
 	const citations = Array.isArray(data.citations) ? data.citations : [];
 
 	const results: SearchResult[] = [];
@@ -191,11 +181,7 @@ export async function searchWithPerplexity(
 		const citation = citations[i];
 		if (typeof citation === "string") {
 			results.push({ title: `Source ${i + 1}`, url: citation, snippet: "" });
-		} else if (
-			citation &&
-			typeof citation === "object" &&
-			typeof citation.url === "string"
-		) {
+		} else if (citation && typeof citation === "object" && typeof citation.url === "string") {
 			results.push({
 				title: citation.title || `Source ${i + 1}`,
 				url: citation.url,

@@ -4,12 +4,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { activityMonitor } from "./activity.js";
-import {
-	type ExtractedContent,
-	type ExtractOptions,
-	extractHeadingTitle,
-	type FrameResult,
-} from "./extract.js";
+import { type ExtractedContent, type ExtractOptions, extractHeadingTitle, type FrameResult } from "./extract.js";
 import { API_BASE, getApiKey, queryGeminiApiWithVideo } from "./gemini-api.js";
 import { isGeminiWebAvailable, queryWithCookies } from "./gemini-web.js";
 import { mapFfmpegError, readExecError, trimErrorText } from "./utils.js";
@@ -105,10 +100,7 @@ function loadVideoConfig(): VideoConfig {
 	const v = raw.video ?? {};
 	cachedVideoConfig = {
 		enabled: normalizeEnabled(v.enabled, VIDEO_CONFIG_DEFAULTS.enabled),
-		preferredModel: normalizePreferredModel(
-			v.preferredModel,
-			VIDEO_CONFIG_DEFAULTS.preferredModel,
-		),
+		preferredModel: normalizePreferredModel(v.preferredModel, VIDEO_CONFIG_DEFAULTS.preferredModel),
 		maxSizeMB: normalizeMaxSizeMB(v.maxSizeMB, VIDEO_CONFIG_DEFAULTS.maxSizeMB),
 	};
 	return cachedVideoConfig;
@@ -118,11 +110,7 @@ export function isVideoFile(input: string): VideoFileInfo | null {
 	const config = loadVideoConfig();
 	if (!config.enabled) return null;
 
-	const isFilePath =
-		input.startsWith("/") ||
-		input.startsWith("./") ||
-		input.startsWith("../") ||
-		input.startsWith("file://");
+	const isFilePath = input.startsWith("/") || input.startsWith("./") || input.startsWith("../") || input.startsWith("file://");
 	if (!isFilePath) return null;
 
 	let filePath = input;
@@ -165,9 +153,7 @@ function resolveFilePath(filePath: string): string | null {
 
 	try {
 		const normalizedBase = normalizeSpaces(base);
-		const match = readdirSync(dir).find(
-			(f) => normalizeSpaces(f) === normalizedBase,
-		);
+		const match = readdirSync(dir).find((f) => normalizeSpaces(f) === normalizedBase);
 		return match ? join(dir, match) : null;
 	} catch {
 		return null;
@@ -178,11 +164,7 @@ function normalizeSpaces(s: string): string {
 	return s.replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, " ");
 }
 
-export async function extractVideo(
-	info: VideoFileInfo,
-	signal?: AbortSignal,
-	options?: ExtractOptions,
-): Promise<ExtractedContent | null> {
+export async function extractVideo(info: VideoFileInfo, signal?: AbortSignal, options?: ExtractOptions): Promise<ExtractedContent | null> {
 	const config = loadVideoConfig();
 	const effectivePrompt = options?.prompt ?? DEFAULT_VIDEO_PROMPT;
 	const effectiveModel = options?.model ?? config.preferredModel;
@@ -193,8 +175,7 @@ export async function extractVideo(
 	});
 
 	const result =
-		(await tryVideoGeminiApi(info, effectivePrompt, effectiveModel, signal)) ??
-		(await tryVideoGeminiWeb(info, effectivePrompt, effectiveModel, signal));
+		(await tryVideoGeminiApi(info, effectivePrompt, effectiveModel, signal)) ?? (await tryVideoGeminiWeb(info, effectivePrompt, effectiveModel, signal));
 
 	if (result) {
 		const thumbnail = await extractVideoFrame(info.absolutePath);
@@ -216,38 +197,18 @@ export async function extractVideo(
 
 function mapFfprobeError(err: unknown): string {
 	const { code, stderr, message } = readExecError(err);
-	if (code === "ENOENT")
-		return "ffprobe is not installed. Install ffmpeg which includes ffprobe";
+	if (code === "ENOENT") return "ffprobe is not installed. Install ffmpeg which includes ffprobe";
 	const snippet = trimErrorText(stderr || message);
 	return snippet ? `ffprobe failed: ${snippet}` : "ffprobe failed";
 }
 
-export async function extractVideoFrame(
-	filePath: string,
-	seconds: number = 1,
-): Promise<FrameResult> {
+export async function extractVideoFrame(filePath: string, seconds: number = 1): Promise<FrameResult> {
 	try {
-		const buffer = execFileSync(
-			"ffmpeg",
-			[
-				"-ss",
-				String(seconds),
-				"-i",
-				filePath,
-				"-frames:v",
-				"1",
-				"-f",
-				"image2pipe",
-				"-vcodec",
-				"mjpeg",
-				"pipe:1",
-			],
-			{
-				maxBuffer: 5 * 1024 * 1024,
-				timeout: 10000,
-				stdio: ["pipe", "pipe", "pipe"],
-			},
-		);
+		const buffer = execFileSync("ffmpeg", ["-ss", String(seconds), "-i", filePath, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1"], {
+			maxBuffer: 5 * 1024 * 1024,
+			timeout: 10000,
+			stdio: ["pipe", "pipe", "pipe"],
+		});
 		if (buffer.length === 0) return { error: "ffmpeg failed: empty output" };
 		return { data: buffer.toString("base64"), mimeType: "image/jpeg" };
 	} catch (err) {
@@ -255,38 +216,22 @@ export async function extractVideoFrame(
 	}
 }
 
-export async function getLocalVideoDuration(
-	filePath: string,
-): Promise<number | { error: string }> {
+export async function getLocalVideoDuration(filePath: string): Promise<number | { error: string }> {
 	try {
-		const output = execFileSync(
-			"ffprobe",
-			[
-				"-v",
-				"quiet",
-				"-show_entries",
-				"format=duration",
-				"-of",
-				"csv=p=0",
-				filePath,
-			],
-			{ timeout: 10000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
-		).trim();
+		const output = execFileSync("ffprobe", ["-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", filePath], {
+			timeout: 10000,
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		}).trim();
 		const duration = Number.parseFloat(output);
-		if (!Number.isFinite(duration))
-			return { error: "ffprobe failed: invalid duration output" };
+		if (!Number.isFinite(duration)) return { error: "ffprobe failed: invalid duration output" };
 		return duration;
 	} catch (err) {
 		return { error: mapFfprobeError(err) };
 	}
 }
 
-async function tryVideoGeminiWeb(
-	info: VideoFileInfo,
-	prompt: string,
-	model: string,
-	signal?: AbortSignal,
-): Promise<ExtractedContent | null> {
+async function tryVideoGeminiWeb(info: VideoFileInfo, prompt: string, model: string, signal?: AbortSignal): Promise<ExtractedContent | null> {
 	try {
 		const cookies = await isGeminiWebAvailable();
 		if (!cookies) return null;
@@ -311,12 +256,7 @@ async function tryVideoGeminiWeb(
 	}
 }
 
-async function tryVideoGeminiApi(
-	info: VideoFileInfo,
-	prompt: string,
-	model: string,
-	signal?: AbortSignal,
-): Promise<ExtractedContent | null> {
+async function tryVideoGeminiApi(info: VideoFileInfo, prompt: string, model: string, signal?: AbortSignal): Promise<ExtractedContent | null> {
 	const apiKey = getApiKey();
 	if (!apiKey) return null;
 	if (signal?.aborted) return null;
@@ -349,11 +289,7 @@ async function tryVideoGeminiApi(
 	}
 }
 
-async function uploadToFilesApi(
-	info: VideoFileInfo,
-	apiKey: string,
-	signal?: AbortSignal,
-): Promise<{ name: string; uri: string }> {
+async function uploadToFilesApi(info: VideoFileInfo, apiKey: string, signal?: AbortSignal): Promise<{ name: string; uri: string }> {
 	const displayName = basename(info.absolutePath);
 
 	const initRes = await fetch(`${UPLOAD_BASE}/files`, {
@@ -372,9 +308,7 @@ async function uploadToFilesApi(
 
 	if (!initRes.ok) {
 		const text = await initRes.text();
-		throw new Error(
-			`File upload init failed: ${initRes.status} (${text.slice(0, 200)})`,
-		);
+		throw new Error(`File upload init failed: ${initRes.status} (${text.slice(0, 200)})`);
 	}
 
 	const uploadUrl = initRes.headers.get("x-goog-upload-url");
@@ -394,9 +328,7 @@ async function uploadToFilesApi(
 
 	if (!uploadRes.ok) {
 		const text = await uploadRes.text();
-		throw new Error(
-			`File upload failed: ${uploadRes.status} (${text.slice(0, 200)})`,
-		);
+		throw new Error(`File upload failed: ${uploadRes.status} (${text.slice(0, 200)})`);
 	}
 
 	const result = (await uploadRes.json()) as {
@@ -405,12 +337,7 @@ async function uploadToFilesApi(
 	return result.file;
 }
 
-async function pollFileState(
-	fileName: string,
-	apiKey: string,
-	signal?: AbortSignal,
-	timeoutMs: number = 120000,
-): Promise<void> {
+async function pollFileState(fileName: string, apiKey: string, signal?: AbortSignal, timeoutMs: number = 120000): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
 
 	while (Date.now() < deadline) {
@@ -432,12 +359,10 @@ async function pollFileState(
 }
 
 function deleteGeminiFile(fileName: string, apiKey: string): void {
-	fetch(`${API_BASE}/${fileName}?key=${apiKey}`, { method: "DELETE" }).catch(
-		(err) => {
-			const message = err instanceof Error ? err.message : String(err);
-			console.error(`Failed to delete Gemini file ${fileName}: ${message}`);
-		},
-	);
+	fetch(`${API_BASE}/${fileName}?key=${apiKey}`, { method: "DELETE" }).catch((err) => {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(`Failed to delete Gemini file ${fileName}: ${message}`);
+	});
 }
 
 function extractVideoTitle(text: string, filePath: string): string {
