@@ -20,7 +20,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Workflow-based curator hard cutover (`workflow`).** Replaced `curate` with `workflow: "none" | "summary-review"`, added summary-review approval flow with `POST /summarize`, made summary text the primary returned output while retaining raw curated evidence in `details`, and switched timeout handling to submit-first with deterministic summary fallback when no approved draft exists.
 - **Auto-open curator for all `web_search` runs (single + multi query).** Searches now open the curator window immediately and stream results live for review workflows; the old countdown/auto-condense fallback path was removed.
-- **Exa.ai search provider.** Neural/semantic search available alongside Perplexity and Gemini. 1,000 free requests/month. Set `EXA_API_KEY` env var or `exaApiKey` in `~/.pi/web-search.json`, or select explicitly with `provider: "exa"`. Includes built-in content extraction — when `includeContent` is true, full page text comes back with search results instead of requiring a separate background fetch. Monthly usage tracked in `~/.pi/exa-usage.json` with a warning at 80%.
+- **Exa.ai search provider.** Neural/semantic search available alongside Perplexity and Gemini. 1,000 free requests/month. Set `EXA_API_KEY` env var or `exaApiKey` in `~/.pi/web-search.json`, or select explicitly with `provider: "exa"`. Includes built-in content extraction, when `includeContent` is true, full page text comes back with search results instead of requiring a separate background fetch. Monthly usage tracked in `~/.pi/exa-usage.json` with a warning at 80%.
 - **Exa MCP fallback.** When no Exa API key is configured, search routes through `mcp.exa.ai` with zero setup. Supports basic search and `includeContent` but not domain/recency filtering (falls through to Gemini for those).
 - **`code_search` tool.** Code/documentation search via Exa MCP (`get_code_context_exa`). No API key required. Returns code examples, docs, and API references from GitHub, Stack Overflow, and official documentation.
 - **Glimpse native curator window.** On macOS with Glimpse installed, the search curator opens in a native WKWebView window instead of a browser tab. Faster launch, closer integration. Falls back to browser automatically when Glimpse is unavailable.
@@ -37,10 +37,10 @@ All notable changes to this project will be documented in this file.
 - **Summary preview modal.** Preview button in the summary actions opens a full-page modal with the summary rendered as formatted markdown. Includes Approve and Regenerate actions with an inline model selector for switching models without leaving the preview.
 - **"Also try" provider chips on searching cards.** Provider re-search chips now appear on cards still in-flight, not just completed ones, so alternative-provider searches can be kicked off in parallel without waiting.
 - **Live search progress in heading.** Hero heading shows "2 of 4 Searches Complete" while searches are running, with status line showing "2 completed, 2 searching". Reverts to "N Searches Complete" when all finish.
-- **Summary subtitle with selection count.** Subtitle now shows "Summary of N selected results" and reacts to selection changes ("Selection changed — regenerating summary…").
+- **Summary subtitle with selection count.** Subtitle now shows "Summary of N selected results" and reacts to selection changes ("Selection changed, regenerating summary…").
 - **Summary model selector relocated.** Moved the provider/model dropdowns from the hero area into the summary panel header, next to the title, so the model choice is adjacent to the summary it controls.
 - **Improved collapsed TUI preview.** Collapsed search result cards now show adaptive content: summary text when available, curated query titles with source counts when results were sent without summary, or a fallback text line otherwise. Line count hint matching pi's built-in pattern: `... (X more lines, Y total, ctrl+o to expand)`.
-- **Inline annotation feedback in preview modal.** Select any text in the rendered summary preview to get a popover with a quoted excerpt and a feedback textarea. Regenerate from the popover to send targeted feedback like `Regarding: "<selected text>" — <your note>`. Supports Cmd/Ctrl+Enter to submit and Escape to dismiss.
+- **Inline annotation feedback in preview modal.** Select any text in the rendered summary preview to get a popover with a quoted excerpt and a feedback textarea. Regenerate from the popover to send targeted feedback like `Regarding: "<selected text>", <your note>`. Supports Cmd/Ctrl+Enter to submit and Escape to dismiss.
 - **Concurrent add-search and alt-chip searches.** The "Add a search" input and "Also try" provider chips are no longer locked while other searches are in-flight. Multiple searches can run in parallel.
 - **Batch provider search shows searching cards immediately.** Clicking a provider button now creates placeholder cards with loading animations upfront instead of waiting for results to arrive.
 
@@ -51,7 +51,7 @@ All notable changes to this project will be documented in this file.
 - Removed legacy `session_switch`/`session_fork` lifecycle listeners and rely on immutable-session `session_start` reinitialization.
 
 ### Removed
-- **`result-review` workflow.** Hard cutover — only `"none"` and `"summary-review"` remain. Removed from `WebSearchWorkflow` type, `resolveWorkflow()`, tool schema, `/websearch` command, and `/curator` command.
+- **`result-review` workflow.** Hard cutover, only `"none"` and `"summary-review"` remain. Removed from `WebSearchWorkflow` type, `resolveWorkflow()`, tool schema, `/websearch` command, and `/curator` command.
 
 ### Fixed
 - Summary generation no longer hard-fails on empty model payloads (`content parts: none`): empty-response failures now fall back to deterministic summary output with explicit fallback metadata (`fallbackReason: "summary-model-empty-response"`) instead of surfacing a terminal UI error.
@@ -120,12 +120,12 @@ All notable changes to this project will be documented in this file.
 ## [0.10.2] - 2026-02-18
 
 ### Added
-- **Interactive search curation.** Press Ctrl+Shift+S during or after a multi-query search to open a browser-based review UI. Results stream in live via SSE. Pick which queries to keep, add new searches on the fly, switch providers — then submit to send only the curated results to the agent.
+- **Interactive search curation.** Press Ctrl+Shift+S during or after a multi-query search to open a browser-based review UI. Results stream in live via SSE. Pick which queries to keep, add new searches on the fly, switch providers, then submit to send only the curated results to the agent.
 - **Auto-condense pipeline.** When the countdown expires without manual curation, a single LLM call (Claude Haiku by default) condenses all search results into a deduplicated briefing organized by topic. Preprocessing enriches the prompt with URL overlap, answer similarity, and source quality analysis. Configure via `"autoFilter"` in `~/.pi/web-search.json`. Full uncondensed results stored and retrievable via `get_search_content`.
 - **Configurable keyboard shortcuts.** Both shortcuts (curate: Ctrl+Shift+S, activity monitor: Ctrl+Shift+W) can be remapped via `"shortcuts"` in `~/.pi/web-search.json`. Changes take effect on restart.
-- **`/websearch` command** — opens the curator directly from pi without an agent round-trip. Accepts optional comma-separated queries or opens empty.
-- **Task-aware condensation.** Optional `context` parameter on `web_search` — a brief description of the user's task. The condenser uses it to focus the briefing on what matters.
-- **Provider selection** — global dropdown in the curator UI to switch between Perplexity and Gemini. Persists to `~/.pi/web-search.json`.
+- **`/websearch` command**, opens the curator directly from pi without an agent round-trip. Accepts optional comma-separated queries or opens empty.
+- **Task-aware condensation.** Optional `context` parameter on `web_search`, a brief description of the user's task. The condenser uses it to focus the briefing on what matters.
+- **Provider selection**, global dropdown in the curator UI to switch between Perplexity and Gemini. Persists to `~/.pi/web-search.json`.
 - **Live condense status in countdown.** Shows "condensing..." while the LLM is working, then "N searches condensed" once complete.
 - Markdown rendering in curator result cards via marked.js.
 - Query-level result cards with expandable answers and source lists. Check/uncheck to include or exclude.
@@ -148,9 +148,9 @@ All notable changes to this project will be documented in this file.
 - Collapsed curated status mixed source URL counts with query counts.
 
 ### New files
-- `curator-server.ts` — ephemeral HTTP server with SSE streaming, state machine, heartbeat watchdog, and token auth.
-- `curator-page.ts` — HTML/CSS/JS for the curator UI with markdown rendering and overlay transitions.
-- `search-filter.ts` — auto-condense pipeline: preprocessing, LLM condensation via pi's model registry, and post-processing (citation verification, source list completion).
+- `curator-server.ts`, ephemeral HTTP server with SSE streaming, state machine, heartbeat watchdog, and token auth.
+- `curator-page.ts`, HTML/CSS/JS for the curator UI with markdown rendering and overlay transitions.
+- `search-filter.ts`, auto-condense pipeline: preprocessing, LLM condensation via pi's model registry, and post-processing (citation verification, source list completion).
 
 ## [0.7.3] - 2026-02-05
 
@@ -185,13 +185,13 @@ All notable changes to this project will be documented in this file.
 ## [0.7.0] - 2026-02-03
 
 ### Added
-- **Multi-provider web search**: `web_search` now supports Perplexity, Gemini API (with Google Search grounding), and Gemini Web (cookie auth) as search providers. New `provider` parameter (`auto`, `perplexity`, `gemini`) controls selection. In `auto` mode (default): Perplexity → Gemini API → Gemini Web. Backwards-compatible — existing Perplexity users see no change.
+- **Multi-provider web search**: `web_search` now supports Perplexity, Gemini API (with Google Search grounding), and Gemini Web (cookie auth) as search providers. New `provider` parameter (`auto`, `perplexity`, `gemini`) controls selection. In `auto` mode (default): Perplexity → Gemini API → Gemini Web. Backwards-compatible, existing Perplexity users see no change.
 - **Gemini API grounded search**: Structured citations via `groundingMetadata` with source URIs and text-to-source mappings. Google proxy URLs are resolved via HEAD redirects. Configured via `GEMINI_API_KEY` or `geminiApiKey` in config.
 - **Gemini Web search**: Zero-config web search for users signed into Google in Chrome. Prompt instructs Gemini to cite sources; URLs extracted from markdown response.
 - **Gemini extraction fallback**: When `fetch_content` fails (HTTP 403/429, Readability fails, network errors), automatically retries via Gemini URL Context API then Gemini Web extraction. Each has an independent 60s timeout. Handles SPAs, JS-heavy pages, and anti-bot protections.
 - **Local video file analysis**: `fetch_content` accepts file paths to video files (MP4, MOV, WebM, AVI, etc.). Detected by path prefix (`/`, `./`, `../`, `file://`), validated by extension and 50MB limit. Two-tier fallback: Gemini API (resumable upload via Files API with proper MIME types, poll-until-active and cleanup) → Gemini Web (free, cookie auth).
 - **Video prompt parameter**: `fetch_content` gains optional `prompt` parameter for asking specific questions about video content. Threads through YouTube and local video extraction. Without prompt, uses default extraction (transcript + visual descriptions).
-- **Video thumbnails**: YouTube results include the video thumbnail (fetched from `img.youtube.com`). Local video results include a frame extracted via ffmpeg (at ~1 second). Returned as image content parts alongside text — the agent sees the thumbnail as vision context.
+- **Video thumbnails**: YouTube results include the video thumbnail (fetched from `img.youtube.com`). Local video results include a frame extracted via ffmpeg (at ~1 second). Returned as image content parts alongside text, the agent sees the thumbnail as vision context.
 - **Configurable frame extraction**: `frames` parameter (1-12) on `fetch_content` for pulling visual frames from YouTube or local video. Works in five modes: frames alone (sample across entire video), single timestamp (one frame), single+frames (N frames at 5s intervals), range (default 6 frames), range+frames (N frames across the range). Endpoint-inclusive distribution with 5-second minimum spacing.
 - **Video duration in responses**: Frame extraction results include the video duration for context.
 - `searchProvider` config option in `~/.pi/web-search.json` for global provider default
@@ -214,8 +214,8 @@ All notable changes to this project will be documented in this file.
 - `web_search` queries parameter described as "parallel" in schema but execution is sequential (changed to "batch"; `urls` correctly remains "parallel")
 - Proper error propagation for frame extraction: missing binaries (yt-dlp, ffmpeg, ffprobe), private/age-restricted/region-blocked videos, expired stream URLs (403), timestamp-exceeds-duration, and timeouts all produce specific user-facing messages instead of silent nulls
 - `isTimeoutError` now detects `execFileSync` timeouts via the `killed` flag (SIGTERM from timeout was previously unrecognized)
-- Float video durations (e.g. 15913.7s from yt-dlp) no longer produce out-of-range timestamps — durations are floored before computing frame positions
-- `parseTimestamp` consistently floors results across both bare-number ("90.5" → 90) and colon ("1:30.5" → 90) paths — previously the colon path returned floats
+- Float video durations (e.g. 15913.7s from yt-dlp) no longer produce out-of-range timestamps, durations are floored before computing frame positions
+- `parseTimestamp` consistently floors results across both bare-number ("90.5" → 90) and colon ("1:30.5" → 90) paths, previously the colon path returned floats
 - YouTube thumbnail assignment no longer sets `null` on the optional `thumbnail` field when fetch fails (was a type mismatch; now only assigned on success)
 
 ### New files
